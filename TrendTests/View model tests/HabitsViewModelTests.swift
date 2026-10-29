@@ -19,7 +19,7 @@ struct HabitsViewModelTests {
 
     @Test func dashboardReflectsSelectedHabits() async throws {
         let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
-        let habit = Habit(type: .water)
+        let habit = Habit(type: .yoga)
         let viewModel = HabitsViewModel(
             habitsFeature: manager,
             purchaseFeature: PurchaseFeature(client: InMemoryPurchaseClient())

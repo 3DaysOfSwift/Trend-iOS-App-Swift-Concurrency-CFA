@@ -9,11 +9,13 @@ struct PositiveHabitTests {
     private let date = Date(timeIntervalSince1970: 1_800_000_000)
 
     @Test func catalogOffersPositiveCheckInsWithoutDeletingRetiredHistory() async throws {
-        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
-        try await manager.enableSelectedHabits(["coffee", "alcohol", "water"])
-        try await manager.recordCoffee()
+        let historical = HabitEntry(id: UUID(), habitType: .coffee, date: date, value: 1)
+        let store = InMemoryHabitDataStore(data: HabitData(enabledHabits: [Habit(type: .coffee)], entries: [historical]))
+        let manager = HabitsFeature(storage: store, currentDate: { date })
+        await manager.load()
+        try await manager.enableSelectedHabits(["coffee", "alcohol", "yoga"])
         #expect(!manager.availableHabits.contains { $0.type == .coffee || $0.type == .alcohol })
-        #expect(manager.activeHabits.map(\.id) == ["water"])
+        #expect(manager.activeHabits.map(\.id) == ["yoga"])
         #expect(manager.entries.first?.habitType == .coffee)
     }
 
@@ -65,23 +67,23 @@ struct PositiveHabitTests {
 
     @Test func invalidCustomNameDoesNotChangeTheSelection() async throws {
         let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
-        try await manager.enableSelectedHabits(["water"])
+        try await manager.enableSelectedHabits(["yoga"])
         await #expect(throws: (any Error).self) { try await manager.enableSelectedHabits([], customNames: ["   "]) }
-        #expect(manager.enabledHabits.map(\.id) == ["water"])
+        #expect(manager.enabledHabits.map(\.id) == ["yoga"])
     }
 
     @Test func overlappingQuickEntriesAccumulateWithoutLostUpdates() async throws {
         let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
-        try await manager.enableSelectedHabits(["water", "exerciseSets"])
+        try await manager.enableSelectedHabits(["runningDistance", "yoga"])
         try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<8 {
-                group.addTask { try await manager.recordDailyValue(1, for: "water") }
-                group.addTask { try await manager.recordDailyValue(3, for: "exerciseSets") }
+                group.addTask { try await manager.recordDailyValue(1, for: "runningDistance") }
+                group.addTask { try await manager.recordDailyValue(1, for: "yoga") }
             }
             try await group.waitForAll()
         }
-        #expect(manager.todaysEntry(for: "water")?.value == 8)
-        #expect(manager.todaysEntry(for: "exerciseSets")?.value == 24)
+        #expect(manager.todaysEntry(for: "runningDistance")?.value == 8)
+        #expect(manager.todaysEntry(for: "yoga")?.value == 1)
     }
 
     @Test func quickRunsConvertMilesAndAccumulate() async throws {
@@ -123,16 +125,16 @@ struct PositiveHabitTests {
     @Test func failedSaveKeepsPreviouslyPublishedState() async throws {
         let manager = HabitsFeature(storage: RejectingHabitSave(), currentDate: { date })
         await manager.load()
-        await #expect(throws: (any Error).self) { try await manager.recordDailyValue(1, for: "water") }
+        await #expect(throws: RejectingHabitSave.SaveFailure.self) { try await manager.recordDailyValue(1, for: "runningDistance") }
         #expect(manager.entries.isEmpty)
-        #expect(manager.todaysEntry(for: "water") == nil)
+        #expect(manager.todaysEntry(for: "runningDistance") == nil)
         #expect(manager.loadState == .ready)
     }
 }
 
 private actor RejectingHabitSave: HabitDataStore {
     struct SaveFailure: Error {}
-    func load() async throws -> HabitData { HabitData(enabledHabits: [Habit(type: .water)], entries: []) }
+    func load() async throws -> HabitData { HabitData(enabledHabits: [Habit(type: .runningDistance)], entries: []) }
     func saveEntries(_ entries: [HabitEntry]) async throws -> HabitData { throw SaveFailure() }
     func savePreferences(selected: [Habit], custom: [Habit]) async throws -> HabitData { throw SaveFailure() }
 }

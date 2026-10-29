@@ -26,19 +26,22 @@ struct DailyStreakSnapshot: Sendable, Equatable {
 @MainActor
 @Observable
 final class DailyStreakManager {
-    private let trend: DailyTrendManager
+    @ObservationIgnored private var latestRefreshID: UUID?
+    private let trend: any DailyTrendAssessing
     private let calendar: Calendar
     private let currentDate: @MainActor () -> Date
 
     private(set) var snapshot: DailyStreakSnapshot = .empty
 
-    init(trend: DailyTrendManager, calendar: Calendar = .current, currentDate: @escaping @MainActor () -> Date) {
+    init(trend: any DailyTrendAssessing, calendar: Calendar = .current, currentDate: @escaping @MainActor () -> Date) {
         self.trend = trend
         self.calendar = calendar
         self.currentDate = currentDate
     }
 
     func refresh(entries: [WeightEntry], now: Date? = nil) async {
+        let refreshID = UUID()
+        latestRefreshID = refreshID
         let now = now ?? currentDate()
         let today = calendar.startOfDay(for: now)
         let entriesByDay = Dictionary(grouping: entries) { entry in
@@ -59,6 +62,8 @@ final class DailyStreakManager {
             }
 
             let assessment = await trend.assess(entries: entries, newestEntryID: entry.id)
+            // A later refresh may have published while this calculation was suspended.
+            guard latestRefreshID == refreshID else { return }
             days.append(.init(
                 date: date,
                 result: assessment.verdict == .positive ? .positive : .needsAttention,

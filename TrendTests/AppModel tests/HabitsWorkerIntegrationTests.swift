@@ -7,6 +7,7 @@ import os
 @testable import Trend
 
 @MainActor
+@Suite(.timeLimit(.minutes(1)))
 struct HabitsWorkerIntegrationTests {
     @Test func overlappingLoadsShareOneLoadEvenIfACallerCancels() async {
         await checkSharedLoad(failing: false)
@@ -54,11 +55,11 @@ struct HabitsWorkerIntegrationTests {
         let dataStore = SuspendedHabitDataStore()
         let date = Date(timeIntervalSince1970: 1_788_480_000)
         let manager = HabitsFeature(storage: dataStore, currentDate: { date })
-        try await manager.enableSelectedHabits([Habit(type: .coffee).id])
+        try await manager.enableSelectedHabits([Habit(type: .runningDistance).id])
         await dataStore.pauseNextSave()
-        let first = Task { try await manager.recordCoffee() }
+        let first = Task { try await manager.recordRun(kilometres: 1) }
         await dataStore.waitForPausedSave()
-        let second = Task { try await manager.recordCoffee() }
+        let second = Task { try await manager.recordRun(kilometres: 1) }
         #expect(manager.entries.isEmpty)
         await dataStore.releaseSave()
         let firstEntry = try await first.value
@@ -66,9 +67,9 @@ struct HabitsWorkerIntegrationTests {
         #expect(firstEntry.value == 1)
         #expect(secondEntry.value == 2)
         #expect(firstEntry.id != secondEntry.id)
-        #expect(manager.todaysEntry(for: Habit(type: .coffee).id) == secondEntry)
-        #expect(manager.todaysEntry(for: Habit(type: .coffee).id)?.value == 2)
-        #expect(manager.currentWeekSummary(for: Habit(type: .coffee).id).totalValue == 2)
+        #expect(manager.todaysEntry(for: Habit(type: .runningDistance).id) == secondEntry)
+        #expect(manager.todaysEntry(for: Habit(type: .runningDistance).id)?.value == 2)
+        #expect(manager.currentWeekSummary(for: Habit(type: .runningDistance).id).totalValue == 2)
         let saved = try await dataStore.load()
         #expect(saved.entries.first?.value == 2)
     }
@@ -76,9 +77,9 @@ struct HabitsWorkerIntegrationTests {
     @Test func loadingAfterARecordingKeepsTheSavedData() async throws {
         let dataStore = SuspendedHabitDataStore()
         let manager = HabitsFeature(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
-        try await manager.enableSelectedHabits([Habit(type: .water).id])
+        try await manager.enableSelectedHabits([Habit(type: .runningDistance).id])
         await dataStore.pauseNextSave()
-        let recording = Task { try await manager.recordGlassOfWater() }
+        let recording = Task { try await manager.recordRun(kilometres: 1) }
         await dataStore.waitForPausedSave()
         let refresh = Task { await manager.load() }
         await dataStore.releaseSave()
@@ -92,30 +93,30 @@ struct HabitsWorkerIntegrationTests {
         let dataStore = SuspendedHabitDataStore()
         let date = Date(timeIntervalSince1970: 1_788_480_000)
         let manager = HabitsFeature(storage: dataStore, currentDate: { date })
-        try await manager.enableSelectedHabits([Habit(type: .coffee).id])
-        try await manager.recordCoffee()
+        try await manager.enableSelectedHabits([Habit(type: .runningDistance).id])
+        try await manager.recordRun(kilometres: 1)
         await dataStore.pauseNextSave()
-        let failed = Task { try await manager.recordCoffee() }
+        let failed = Task { try await manager.recordRun(kilometres: 1) }
         await dataStore.waitForPausedSave()
         await dataStore.releaseSave(failing: true)
         do {
             try await failed.value
             #expect(false)
         } catch {}
-        #expect(manager.todaysEntry(for: Habit(type: .coffee).id)?.value == 1)
-        #expect(manager.currentWeekSummary(for: Habit(type: .coffee).id).totalValue == 1)
-        try await manager.recordCoffee()
-        #expect(manager.todaysEntry(for: Habit(type: .coffee).id)?.value == 2)
+        #expect(manager.todaysEntry(for: Habit(type: .runningDistance).id)?.value == 1)
+        #expect(manager.currentWeekSummary(for: Habit(type: .runningDistance).id).totalValue == 1)
+        try await manager.recordRun(kilometres: 1)
+        #expect(manager.todaysEntry(for: Habit(type: .runningDistance).id)?.value == 2)
     }
 
     @Test func cancelledQueuedRecordingDoesNotWrite() async throws {
         let dataStore = SuspendedHabitDataStore()
         let manager = HabitsFeature(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
-        try await manager.enableSelectedHabits([Habit(type: .coffee).id])
+        try await manager.enableSelectedHabits([Habit(type: .runningDistance).id])
         await dataStore.pauseNextSave()
-        let first = Task { try await manager.recordCoffee() }
+        let first = Task { try await manager.recordRun(kilometres: 1) }
         await dataStore.waitForPausedSave()
-        let cancelled = Task { try await manager.recordCoffee() }
+        let cancelled = Task { try await manager.recordRun(kilometres: 1) }
         cancelled.cancel()
         await dataStore.releaseSave()
         try await first.value
@@ -130,35 +131,35 @@ struct HabitsWorkerIntegrationTests {
         let dataStore = SuspendedHabitDataStore()
         var date = Date(timeIntervalSince1970: 1_788_480_000)
         let manager = HabitsFeature(storage: dataStore, currentDate: { date })
-        try await manager.enableSelectedHabits([Habit(type: .coffee).id])
-        try await manager.recordCoffee()
+        try await manager.enableSelectedHabits([Habit(type: .runningDistance).id])
+        try await manager.recordRun(kilometres: 1)
         let loadsBeforeDayChange = await dataStore.loadCount
         date = date.addingTimeInterval(2 * 86_400)
         await manager.updateCurrentDay()
-        #expect(manager.todaysEntry(for: Habit(type: .coffee).id) == nil)
-        #expect(manager.currentWeekSummary(for: Habit(type: .coffee).id).currentStreak == 0)
+        #expect(manager.todaysEntry(for: Habit(type: .runningDistance).id) == nil)
+        #expect(manager.currentWeekSummary(for: Habit(type: .runningDistance).id).currentStreak == 0)
         #expect(await dataStore.loadCount == loadsBeforeDayChange)
     }
 
     @Test func loadingPublishesPreparedSummaries() async throws {
         let date = Date(timeIntervalSince1970: 1_788_480_000)
-        let data = HabitData(enabledHabits: [Habit(type: .coffee)], entries: [
-            HabitEntry(id: UUID(), habitType: .coffee, date: date, value: 3)
+        let data = HabitData(enabledHabits: [Habit(type: .runningDistance)], entries: [
+            HabitEntry(id: UUID(), habitType: .runningDistance, date: date, value: 3)
         ])
         let manager = HabitsFeature(storage: InMemoryHabitDataStore(data: data), currentDate: { date })
         await manager.load()
         #expect(manager.loadState == .ready)
-        #expect(manager.todaysEntry(for: Habit(type: .coffee).id)?.value == 3)
-        #expect(manager.currentWeekSummary(for: Habit(type: .coffee).id).totalValue == 3)
-        #expect(manager.lifetimeSummary(for: Habit(type: .coffee).id).totalValue == 3)
+        #expect(manager.todaysEntry(for: Habit(type: .runningDistance).id)?.value == 3)
+        #expect(manager.currentWeekSummary(for: Habit(type: .runningDistance).id).totalValue == 3)
+        #expect(manager.lifetimeSummary(for: Habit(type: .runningDistance).id).totalValue == 3)
     }
 
     @Test func successfulSaveStillPublishesWhenCancellationArrivesDuringPersistence() async throws {
         let dataStore = SuspendedHabitDataStore()
         let manager = HabitsFeature(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
-        try await manager.enableSelectedHabits([Habit(type: .coffee).id])
+        try await manager.enableSelectedHabits([Habit(type: .runningDistance).id])
         await dataStore.pauseNextSave()
-        let recording = Task { try await manager.recordCoffee() }
+        let recording = Task { try await manager.recordRun(kilometres: 1) }
         await dataStore.waitForPausedSave()
         recording.cancel()
         await dataStore.releaseSave()
@@ -171,10 +172,10 @@ struct HabitsWorkerIntegrationTests {
     @Test func swiftUIObservationTracksSharedFeatureState() async throws {
         let date = Date(timeIntervalSince1970: 1_788_480_000)
         let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
-        try await manager.enableSelectedHabits([Habit(type: .coffee).id])
+        try await manager.enableSelectedHabits([Habit(type: .runningDistance).id])
         let viewModel = DailyHabitsViewModel(habitsFeature: manager,
             purchaseFeature: PurchaseFeature(client: InMemoryPurchaseClient()))
-        let habit = Habit(type: .coffee)
+        let habit = Habit(type: .runningDistance)
         let changed = OSAllocatedUnfairLock(initialState: false)
         withObservationTracking {
             _ = viewModel.week(for: habit)
@@ -194,7 +195,7 @@ struct HabitsWorkerIntegrationTests {
         } onChange: {
             selectionChanged.withLock { $0 = true }
         }
-        try await manager.recordCoffee()
+        try await manager.recordRun(kilometres: 1)
         #expect(historyChanged.withLock { $0 })
         #expect(selectionChanged.withLock { $0 })
         #expect(history.entries.count == 1)

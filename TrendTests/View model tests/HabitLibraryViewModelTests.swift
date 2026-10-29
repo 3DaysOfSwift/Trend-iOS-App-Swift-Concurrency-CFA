@@ -10,20 +10,20 @@ struct HabitLibraryViewModelTests {
             habitsFeature: HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
         )
 
-        viewModel.toggle(Habit(type: .coffee))
-        #expect(viewModel.selection == [Habit(type: .coffee).id])
-        viewModel.toggle(Habit(type: .coffee))
+        viewModel.toggle(Habit(type: .gymAttendance))
+        #expect(viewModel.selection == [Habit(type: .gymAttendance).id])
+        viewModel.toggle(Habit(type: .gymAttendance))
         #expect(viewModel.selection.isEmpty)
     }
 
     @Test func savePublishesTheSelectedHabits() async {
         let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
         let viewModel = HabitLibraryViewModel(habitsFeature: manager)
-        viewModel.selection = [Habit(type: .sleep).id, Habit(type: .water).id]
+        viewModel.selection = [Habit(type: .sauna).id, Habit(type: .yoga).id]
 
         let succeeded = await viewModel.save()
 
         #expect(succeeded)
-        #expect(Set(manager.enabledHabits.map(\.id)) == [Habit(type: .sleep).id, Habit(type: .water).id])
+        #expect(Set(manager.enabledHabits.map(\.id)) == [Habit(type: .sauna).id, Habit(type: .yoga).id])
     }
 }

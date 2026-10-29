@@ -24,7 +24,11 @@ struct DailyCheckInResult: Sendable, Equatable {
     let whatNext: WhatNextGuidance?
 }
 
-actor DailyTrendManager {
+protocol DailyTrendAssessing: Sendable {
+    func assess(entries: [WeightEntry], newestEntryID: UUID) async -> DailyTrendAssessment
+}
+
+actor DailyTrendManager: DailyTrendAssessing {
     private let stableToleranceKilograms: Double
     private let plateauLimitDays: Int
     private let calendar: Calendar

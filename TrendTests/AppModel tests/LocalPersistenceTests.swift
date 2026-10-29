@@ -63,7 +63,7 @@ struct LocalPersistenceTests {
         let weight = WeightLogManager(repository: LocalWeightRepository(storage: storage))
         try await weight.add(WeightEntryDraft(date: date, value: "69.7"), unit: .kilograms)
         let habits = HabitsFeature(storage: LocalHabitRepository(storage: storage), currentDate: { date })
-        try await habits.enableSelectedHabits(["morningMood", "water"])
+        try await habits.enableSelectedHabits(["morningMood", "yoga"])
         try await habits.recordDailyValue(4, for: "morningMood")
         await storage.close()
 
@@ -72,7 +72,7 @@ struct LocalPersistenceTests {
         let restoredHabits = try await reopened.loadHabits()
         #expect(restoredWeight.entries.count == 1)
         #expect(restoredWeight.entries.first?.kilograms == 69.7)
-        #expect(Set(restoredHabits.enabledHabits.map(\.id)) == ["morningMood", "water"])
+        #expect(Set(restoredHabits.enabledHabits.map(\.id)) == ["morningMood", "yoga"])
         #expect(restoredHabits.entries.first?.value == 4)
         await reopened.close()
     }
