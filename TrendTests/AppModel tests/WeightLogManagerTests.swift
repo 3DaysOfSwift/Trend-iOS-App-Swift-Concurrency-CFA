@@ -7,6 +7,33 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct WeightLogManagerTests {
+    @Test func cancelledQueuedRefreshDoesNotReadStorage() async throws {
+        let repository = PausedWeightRepository()
+        let manager = WeightLogManager(repository: repository)
+        await manager.load()
+        let saving = Task {
+            try await manager.add(WeightEntryDraft(date: .now, value: "75"), unit: .kilograms)
+        }
+        await repository.waitForSave()
+        var refresh: Task<Void, Never>?
+        await withCheckedContinuation { started in
+            refresh = Task {
+                started.resume()
+                await manager.load()
+            }
+        }
+        let queuedRefresh = try #require(refresh)
+        queuedRefresh.cancel()
+        await repository.finishSave()
+        try await saving.value
+        await queuedRefresh.value
+        #expect(await repository.loadCount == 1)
+        #expect(manager.state == .ready)
+        #expect(manager.entries.count == 1)
+        await manager.load()
+        #expect(await repository.loadCount == 2)
+    }
+
     @Test func addingEntryPersistsCanonicalKilograms() async throws {
         let repository = InMemoryWeightRepository()
         let manager = WeightLogManager(repository: repository)
@@ -81,7 +108,8 @@ private actor PausedWeightRepository: WeightRepository {
     private var saveRelease: CheckedContinuation<Bool, Never>?
     private var saveStarted: CheckedContinuation<Void, Never>?
 
-    func load() -> WeightStore { store }
+    private(set) var loadCount = 0
+    func load() -> WeightStore { loadCount += 1; return store }
 
     func save(_ candidate: WeightStore) async throws {
         if shouldPause {

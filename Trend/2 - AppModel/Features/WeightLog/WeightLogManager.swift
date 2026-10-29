@@ -28,6 +28,7 @@ final class WeightLogManager {
     func load(prepareLoadedData: @MainActor () async -> Void = {}) async {
         await waitForPreviousOperation()
         defer { finishOperation() }
+        guard !Task.isCancelled else { return }
         if state != .ready { state = .loading }
         do {
             publish(try await repository.load())
