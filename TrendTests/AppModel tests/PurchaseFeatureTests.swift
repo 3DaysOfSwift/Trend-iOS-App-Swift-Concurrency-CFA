@@ -6,6 +6,40 @@ import Testing
 @MainActor
 struct PurchaseFeatureTests {
     @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func purchaseAndRestoreExcludeCompetingRequests(restoreFirst: Bool) async {
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        var calls = 0
+        func performRequest() async {
+            calls += 1
+            if calls == 1 {
+                entered.continuation.yield(())
+                for await _ in release.stream { break }
+            }
+        }
+        let client = InMemoryPurchaseClient()
+        client.purchaseResponse = { await performRequest(); return .cancelled }
+        client.restoreResponse = { await performRequest() }
+        let feature = PurchaseFeature(client: client)
+        let first = Task {
+            if restoreFirst { await feature.restorePurchases() }
+            else { await feature.purchaseHabits() }
+        }
+        var events = entered.stream.makeAsyncIterator()
+        _ = await events.next()
+        await feature.purchaseHabits()
+        await feature.restorePurchases()
+        #expect(calls == 1)
+        #expect(feature.isPurchasing)
+        release.continuation.finish()
+        await first.value
+        #expect(!feature.isPurchasing)
+        await feature.purchaseHabits()
+        #expect(calls == 2)
+    }
+
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
     func releasingFeatureCancelsTransactionObservation(afterUpdate: Bool) async {
         let stopped = AsyncStream<Bool>.makeStream()
         let checked = AsyncStream<Void>.makeStream()

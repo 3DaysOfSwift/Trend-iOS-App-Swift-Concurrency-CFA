@@ -70,6 +70,7 @@ final class PurchaseFeature {
     }
 
     func purchaseHabits() async {
+        guard !isPurchasing else { return }
         isPurchasing = true
         defer { isPurchasing = false }
         do {
@@ -87,6 +88,7 @@ final class PurchaseFeature {
     }
 
     func restorePurchases() async {
+        guard !isPurchasing else { return }
         isPurchasing = true
         defer { isPurchasing = false }
         do {

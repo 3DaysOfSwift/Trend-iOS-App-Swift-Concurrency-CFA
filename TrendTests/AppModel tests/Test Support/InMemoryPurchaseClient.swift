@@ -12,6 +12,8 @@ final class InMemoryPurchaseClient: PurchaseClient {
         displayPrice: "£4.99"
     )
     private(set) var observationCount = 0
+    var purchaseResponse: (@MainActor () async throws -> PurchaseOutcome)?
+    var restoreResponse: (@MainActor () async throws -> Void)?
     var productResponse: (@MainActor () async throws -> PurchaseProduct?)?
     var entitlementResponse: (@MainActor () async -> Bool)?
     var hasPurchased = false
@@ -34,6 +36,7 @@ final class InMemoryPurchaseClient: PurchaseClient {
     }
 
     func purchase(productID: String) async throws -> PurchaseOutcome {
+        if let purchaseResponse { return try await purchaseResponse() }
         if case .purchased = nextOutcome { hasPurchased = true }
         return nextOutcome
     }
@@ -42,7 +45,7 @@ final class InMemoryPurchaseClient: PurchaseClient {
         if let entitlementResponse { return await entitlementResponse() }
         return hasPurchased
     }
-    func restore() async throws {}
+    func restore() async throws { try await restoreResponse?() }
     func transactionUpdates() -> AsyncStream<Void> {
         observationCount += 1
         return updates
