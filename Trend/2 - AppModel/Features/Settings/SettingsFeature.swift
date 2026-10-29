@@ -8,20 +8,20 @@ import Observation
 @Observable
 final class SettingsFeature {
     private let settings: UserSettingsStore
-    private let weightLog: WeightLogManager
+    private let weightLogFeature: WeightLogFeature
     private let progress: ProgressTracker
     private let dailyStreak: DailyStreakManager
     private let backupFiles: BackupFileManager
 
     init(
         settings: UserSettingsStore,
-        weightLog: WeightLogManager,
+        weightLogFeature: WeightLogFeature,
         progress: ProgressTracker,
         dailyStreak: DailyStreakManager,
         backupFiles: BackupFileManager
     ) {
         self.settings = settings
-        self.weightLog = weightLog
+        self.weightLogFeature = weightLogFeature
         self.progress = progress
         self.dailyStreak = dailyStreak
         self.backupFiles = backupFiles
@@ -31,7 +31,7 @@ final class SettingsFeature {
     var weightInputStyle: WeightInputStyle { settings.weightInputStyle }
     func setWeightInputStyle(_ style: WeightInputStyle) { settings.weightInputStyle = style }
     var cloudSyncStatus: CloudSyncStatus { settings.cloudStatus }
-    var goalWeightKilograms: Double? { weightLog.goalKilograms }
+    var goalWeightKilograms: Double? { weightLogFeature.goalKilograms }
 
     func setWeightUnit(_ unit: WeightUnit) {
         settings.unit = unit
@@ -46,19 +46,19 @@ final class SettingsFeature {
     }
 
     func setGoal(from text: String) async throws {
-        try await weightLog.setGoal(kilograms: settings.unit.kilograms(from: text))
+        try await weightLogFeature.setGoal(kilograms: settings.unit.kilograms(from: text))
         await progress.refresh(
-            entries: weightLog.entries,
-            goalKilograms: weightLog.goalKilograms
+            entries: weightLogFeature.entries,
+            goalKilograms: weightLogFeature.goalKilograms
         )
     }
 
     func exportData() async throws -> Data {
-        try await backupFiles.encode(weightLog.store)
+        try await backupFiles.encode(weightLogFeature.store)
     }
 
     func deleteAllData() async throws {
-        try await weightLog.removeAll()
+        try await weightLogFeature.removeAll()
         await progress.refresh(entries: [])
         await dailyStreak.refresh(entries: [])
     }

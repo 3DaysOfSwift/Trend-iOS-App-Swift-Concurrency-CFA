@@ -73,7 +73,7 @@ struct WeightImportTests {
         let existing = WeightEntry(date: time, kilograms: 70, note: "My existing note")
         let other = WeightEntry(date: time.addingTimeInterval(3600), kilograms: 70)
         let repository = InMemoryWeightRepository(store: WeightStore(entries: [existing], goalKilograms: 60))
-        let manager = WeightLogManager(repository: repository)
+        let manager = WeightLogFeature(repository: repository)
         let duplicate = WeightEntry(date: time, kilograms: 70, note: "Do not replace my note")
         async let a = manager.mergeImportedEntries([duplicate, other])
         async let b = manager.mergeImportedEntries([duplicate, other])
@@ -83,7 +83,7 @@ struct WeightImportTests {
         #expect(manager.entries.first(where: { $0.id == existing.id })?.note == existing.note)
         #expect(manager.goalKilograms == 60)
         #expect(await repository.saveCallCount == 1)
-        let reloaded = WeightLogManager(repository: repository)
+        let reloaded = WeightLogFeature(repository: repository)
         await reloaded.load()
         #expect(reloaded.entries == manager.entries)
     }
@@ -91,7 +91,7 @@ struct WeightImportTests {
     @MainActor @Test func saveFailureLeavesExistingDataIntact() async throws {
         let existing = WeightEntry(date: .now, kilograms: 70)
         let repository = InMemoryWeightRepository(store: .init(entries: [existing], goalKilograms: 60), saveError: .saveFailed)
-        let manager = WeightLogManager(repository: repository)
+        let manager = WeightLogFeature(repository: repository)
         await manager.load()
         await #expect(throws: (any Error).self) {
             try await manager.mergeImportedEntries([WeightEntry(date: .now, kilograms: 69)])
@@ -105,8 +105,8 @@ struct WeightImportTests {
         try Data("units,kg\n2026-09-13 12:00:00,70".utf8).write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
         let repository = InMemoryWeightRepository()
-        let manager = WeightLogManager(repository: repository)
-        let feature = WeightImportFeature(weightLog: manager, refresh: {})
+        let manager = WeightLogFeature(repository: repository)
+        let feature = WeightImportFeature(weightLogFeature: manager, refresh: {})
         let viewModel = WeightImportViewModel(url: url, feature: feature)
         await viewModel.load()
         #expect(viewModel.canImport)
@@ -133,7 +133,7 @@ struct WeightImportTests {
         let storage = LocalDataStore(directory: directory)
         let habit = Habit(type: .water)
         _ = try await storage.saveHabitPreferences(selected: [habit], custom: [])
-        let manager = WeightLogManager(repository: LocalWeightRepository(storage: storage))
+        let manager = WeightLogFeature(repository: LocalWeightRepository(storage: storage))
         let entry = WeightEntry(date: Date(timeIntervalSince1970: 1_700_000_000), kilograms: 69.7123)
         _ = try await manager.mergeImportedEntries([entry])
         let reopened = LocalDataStore(directory: directory)

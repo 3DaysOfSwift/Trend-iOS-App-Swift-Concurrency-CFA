@@ -6,10 +6,10 @@ import Testing
 
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
-struct WeightLogManagerTests {
+struct WeightLogFeatureTests {
     @Test func cancelledQueuedRefreshDoesNotReadStorage() async throws {
         let repository = PausedWeightRepository()
-        let manager = WeightLogManager(repository: repository)
+        let manager = WeightLogFeature(repository: repository)
         await manager.load()
         let saving = Task {
             try await manager.add(WeightEntryDraft(date: .now, value: "75"), unit: .kilograms)
@@ -36,7 +36,7 @@ struct WeightLogManagerTests {
 
     @Test func addingEntryPersistsCanonicalKilograms() async throws {
         let repository = InMemoryWeightRepository()
-        let manager = WeightLogManager(repository: repository)
+        let manager = WeightLogFeature(repository: repository)
         await manager.load()
         try await manager.add(
             WeightEntryDraft(date: .now, value: "75.5", note: " Test "),
@@ -49,7 +49,7 @@ struct WeightLogManagerTests {
 
     @Test func overlappingSavesRetainEveryEntry() async throws {
         let repository = InMemoryWeightRepository()
-        let manager = WeightLogManager(repository: repository)
+        let manager = WeightLogFeature(repository: repository)
         let tasks = (0..<20).map { index in
             Task { @MainActor in
                 try await manager.add(WeightEntryDraft(date: .now, value: "\(70 + index)"), unit: .kilograms)
@@ -62,7 +62,7 @@ struct WeightLogManagerTests {
 
     @Test func successfulSavePublishesEvenIfCallerCancelsDuringPersistence() async throws {
         let repository = PausedWeightRepository()
-        let manager = WeightLogManager(repository: repository)
+        let manager = WeightLogFeature(repository: repository)
         await manager.load()
         let saving = Task {
             try await manager.add(WeightEntryDraft(date: .now, value: "75"), unit: .kilograms)
@@ -78,7 +78,7 @@ struct WeightLogManagerTests {
 
     @Test func failedSaveLeavesStateIntactAndReleasesOperationGate() async throws {
         let repository = PausedWeightRepository()
-        let manager = WeightLogManager(repository: repository)
+        let manager = WeightLogFeature(repository: repository)
         await manager.load()
         let saving = Task {
             try await manager.add(WeightEntryDraft(date: .now, value: "75"), unit: .kilograms)

@@ -7,12 +7,12 @@ import Observation
 @Observable
 final class WeightImportFeature {
     private let files: WeightImportFileReader
-    private let weightLog: WeightLogManager
+    private let weightLogFeature: WeightLogFeature
     private let refresh: @MainActor () async -> Void
 
-    init(weightLog: WeightLogManager, files: WeightImportFileReader = WeightImportFileReader(),
+    init(weightLogFeature: WeightLogFeature, files: WeightImportFileReader = WeightImportFileReader(),
          refresh: @escaping @MainActor () async -> Void) {
-        self.weightLog = weightLog
+        self.weightLogFeature = weightLogFeature
         self.files = files
         self.refresh = refresh
     }
@@ -22,7 +22,7 @@ final class WeightImportFeature {
     }
 
     func merge(_ document: WeightImportDocument) async throws -> WeightImportMerge {
-        let result = try await weightLog.mergeImportedEntries(document.entries)
+        let result = try await weightLogFeature.mergeImportedEntries(document.entries)
         await refresh()
         return result
     }

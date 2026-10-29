@@ -35,6 +35,7 @@ struct AppModelTests {
         try await appModel.settingsFeature.setGoal(from: "154.3")
 
         #expect(abs((appModel.settingsFeature.goalWeightKilograms ?? 0) - 69.989) < 0.01)
+        #expect(appModel.weightLogFeature.goalKilograms == appModel.settingsFeature.goalWeightKilograms)
     }
 
     @Test func settingsCommandsRemainBehindAppModelBoundary() async {
@@ -71,6 +72,11 @@ struct AppModelTests {
 
         #expect(appModel.weightEntryFeature.entries.count == 1)
         #expect(appModel.progressFeature.progressSnapshot.points.count == 1)
+        #expect(appModel.weightLogFeature.entries == appModel.weightEntryFeature.entries)
+        let entry = try #require(appModel.weightLogFeature.entries.first)
+        try await appModel.weightEntryFeature.delete(entry)
+        #expect(appModel.weightLogFeature.entries.isEmpty)
+        #expect(appModel.progressFeature.progressSnapshot.points.isEmpty)
     }
 }
 

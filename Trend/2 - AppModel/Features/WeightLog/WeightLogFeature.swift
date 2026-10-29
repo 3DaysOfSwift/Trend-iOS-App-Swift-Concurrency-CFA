@@ -10,9 +10,11 @@ enum WeightLogState: Equatable {
     case failed(String)
 }
 
+/// Owns the app's authoritative weight records and goal. Workflow Features
+/// share this instance; the repository only loads and saves its values.
 @MainActor
 @Observable
-final class WeightLogManager {
+final class WeightLogFeature {
     @ObservationIgnored private var operationInProgress = false
     @ObservationIgnored private var waitingOperations: [CheckedContinuation<Void, Never>] = []
     private let repository: any WeightRepository

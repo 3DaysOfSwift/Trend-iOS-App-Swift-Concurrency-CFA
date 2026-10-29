@@ -9,21 +9,21 @@ import Observation
 @Observable
 final class ProgressFeature {
     private let progress: ProgressTracker
-    private let weightLog: WeightLogManager
+    private let weightLogFeature: WeightLogFeature
     private let settings: UserSettingsStore
 
     init(
         progress: ProgressTracker,
-        weightLog: WeightLogManager,
+        weightLogFeature: WeightLogFeature,
         settings: UserSettingsStore
     ) {
         self.progress = progress
-        self.weightLog = weightLog
+        self.weightLogFeature = weightLogFeature
         self.settings = settings
     }
 
     var progressSnapshot: WeightHistoryData { progress.snapshot }
-    var goalWeightKilograms: Double? { weightLog.goalKilograms }
+    var goalWeightKilograms: Double? { weightLogFeature.goalKilograms }
     var selectedWeightUnit: WeightUnit { settings.unit }
     var isPreparingProgress: Bool { progress.isLoading }
     var selectedProgressRange: ProgressRange { progress.range }
@@ -31,8 +31,8 @@ final class ProgressFeature {
     func selectProgressRange(_ range: ProgressRange) {
         progress.select(
             range,
-            entries: weightLog.entries,
-            goalKilograms: weightLog.goalKilograms
+            entries: weightLogFeature.entries,
+            goalKilograms: weightLogFeature.goalKilograms
         )
     }
 }

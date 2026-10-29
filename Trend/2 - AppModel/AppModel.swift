@@ -11,6 +11,7 @@ final class AppModel {
     /// The single instance of our model. Use it to access Features.
     static let shared = AppModel.live()
 
+    let weightLogFeature: WeightLogFeature
     let weightEntryFeature: WeightEntryFeature
     let progressFeature: ProgressFeature
     let settingsFeature: SettingsFeature
@@ -22,6 +23,7 @@ final class AppModel {
     private var hasLaunched = false
 
     init(
+        weightLogFeature: WeightLogFeature,
         weightEntryFeature: WeightEntryFeature,
         progressFeature: ProgressFeature,
         settingsFeature: SettingsFeature,
@@ -31,6 +33,7 @@ final class AppModel {
         backupFeature: BackupFeature,
         weightImportFeature: WeightImportFeature
     ) {
+        self.weightLogFeature = weightLogFeature
         self.weightEntryFeature = weightEntryFeature
         self.progressFeature = progressFeature
         self.settingsFeature = settingsFeature
@@ -53,7 +56,7 @@ final class AppModel {
         let storage = LocalDataStore(directory: directory,
             cloudContainerIdentifier: "iCloud.com.3DaysOfSwiftConcurrency.Trend.SwiftData")
         let repository = LocalWeightRepository(storage: storage)
-        let weightLog = WeightLogManager(repository: repository)
+        let weightLogFeature = WeightLogFeature(repository: repository)
         let progress = ProgressTracker(currentDate: currentDate)
         let settings = UserSettingsStore(cloudSync: ICloudDriveAvailability())
         let dailyTrend = DailyTrendManager()
@@ -68,7 +71,7 @@ final class AppModel {
         let purchaseFeature = PurchaseFeature(client: StoreKitPurchaseClient())
 
         let weightEntryFeature = WeightEntryFeature(
-            weightLog: weightLog,
+            weightLogFeature: weightLogFeature,
             progress: progress,
             settings: settings,
             dailyTrend: dailyTrend,
@@ -77,12 +80,12 @@ final class AppModel {
         )
         let progressFeature = ProgressFeature(
             progress: progress,
-            weightLog: weightLog,
+            weightLogFeature: weightLogFeature,
             settings: settings
         )
         let settingsFeature = SettingsFeature(
             settings: settings,
-            weightLog: weightLog,
+            weightLogFeature: weightLogFeature,
             progress: progress,
             dailyStreak: dailyStreak,
             backupFiles: backupFiles
@@ -93,6 +96,7 @@ final class AppModel {
                 await habitsFeature.reload()
             }
         return AppModel(
+            weightLogFeature: weightLogFeature,
             weightEntryFeature: weightEntryFeature,
             progressFeature: progressFeature,
             settingsFeature: settingsFeature,
@@ -100,7 +104,7 @@ final class AppModel {
             purchaseFeature: purchaseFeature,
             dailyTipsFeature: dailyTipsFeature,
             backupFeature: backupFeature,
-            weightImportFeature: WeightImportFeature(weightLog: weightLog) { await weightEntryFeature.refresh() }
+            weightImportFeature: WeightImportFeature(weightLogFeature: weightLogFeature) { await weightEntryFeature.refresh() }
         )
     }
 

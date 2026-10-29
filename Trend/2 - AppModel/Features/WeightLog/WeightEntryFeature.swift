@@ -16,7 +16,7 @@ final class WeightEntryFeature {
         }
     }
 
-    private let weightLog: WeightLogManager
+    private let weightLogFeature: WeightLogFeature
     private let progress: ProgressTracker
     private let settings: UserSettingsStore
     private let dailyTrend: DailyTrendManager
@@ -27,14 +27,14 @@ final class WeightEntryFeature {
     private let currentDate: @MainActor () -> Date
 
     init(
-        weightLog: WeightLogManager,
+        weightLogFeature: WeightLogFeature,
         progress: ProgressTracker,
         settings: UserSettingsStore,
         dailyTrend: DailyTrendManager,
         dailyStreak: DailyStreakManager,
         currentDate: @escaping @MainActor () -> Date
     ) {
-        self.weightLog = weightLog
+        self.weightLogFeature = weightLogFeature
         self.progress = progress
         self.settings = settings
         self.dailyTrend = dailyTrend
@@ -42,14 +42,14 @@ final class WeightEntryFeature {
         self.currentDate = currentDate
     }
 
-    var latestWeightEntry: WeightEntry? { weightLog.latestEntry }
+    var latestWeightEntry: WeightEntry? { weightLogFeature.latestEntry }
     var hasRecordedWeightToday: Bool {
         let now = currentDate()
-        return weightLog.entries.contains { Calendar.current.isDate($0.date, inSameDayAs: now) }
+        return weightLogFeature.entries.contains { Calendar.current.isDate($0.date, inSameDayAs: now) }
     }
     var latestWeightChangeKilograms: Double? { progress.snapshot.changeKilograms }
     var progressSnapshot: WeightHistoryData { progress.snapshot }
-    var goalWeightKilograms: Double? { weightLog.goalKilograms }
+    var goalWeightKilograms: Double? { weightLogFeature.goalKilograms }
     var dailyStreakSnapshot: DailyStreakSnapshot { dailyStreak.snapshot }
     var selectedWeightUnit: WeightUnit { settings.unit }
     var weightInputStyle: WeightInputStyle { settings.weightInputStyle }
@@ -59,7 +59,7 @@ final class WeightEntryFeature {
     /// Its date is today and its note is empty, not copied from the old entry.
     func makeDailyWeightDraft() -> WeightEntryDraft {
         var draft = makeWeightEntryDraft(editing: nil)
-        if let latest = weightLog.latestEntry {
+        if let latest = weightLogFeature.latestEntry {
             draft.value = settings.unit.value(fromKilograms: latest.kilograms)
                 .formatted(.number.grouping(.never).precision(.fractionLength(1)))
         }
@@ -72,8 +72,8 @@ final class WeightEntryFeature {
             .formatted(.number.grouping(.never).precision(.fractionLength(1)))
     }
     var latestPermittedEntryDate: Date { currentDate() }
-    var weightLogState: WeightLogState { weightLog.state }
-    var entries: [WeightEntry] { weightLog.entries }
+    var weightLogState: WeightLogState { weightLogFeature.state }
+    var entries: [WeightEntry] { weightLogFeature.entries }
 
     func makeWeightEntryDraft(editing entry: WeightEntry?) -> WeightEntryDraft {
         let unit = settings.unit
@@ -90,39 +90,39 @@ final class WeightEntryFeature {
     func save(_ draft: WeightEntryDraft, editing entry: WeightEntry?) async throws {
         try validateEntryDate(draft.date)
         if let entry {
-            try await weightLog.update(entry, with: draft, unit: settings.unit)
+            try await weightLogFeature.update(entry, with: draft, unit: settings.unit)
         } else {
-            try await weightLog.add(draft, unit: settings.unit)
+            try await weightLogFeature.add(draft, unit: settings.unit)
         }
         await refreshDerivedFeatures()
     }
 
     func checkIn(_ draft: WeightEntryDraft) async throws -> DailyTrendAssessment {
         try validateEntryDate(draft.date)
-        let newEntry = try await weightLog.add(draft, unit: settings.unit)
+        let newEntry = try await weightLogFeature.add(draft, unit: settings.unit)
 
         await refreshDerivedFeatures()
         let assessment = await dailyTrend.assess(
-            entries: weightLog.entries,
+            entries: weightLogFeature.entries,
             newestEntryID: newEntry.id
         )
         return assessment
     }
 
     func delete(_ entry: WeightEntry) async throws {
-        try await weightLog.delete(entry)
+        try await weightLogFeature.delete(entry)
         await refreshDerivedFeatures()
     }
 
     func refresh() async {
-        await weightLog.load {
+        await weightLogFeature.load {
             await self.refreshDerivedFeatures()
         }
     }
 
     private func refreshDerivedFeatures() async {
-        let entries = weightLog.entries
-        let goalKilograms = weightLog.goalKilograms
+        let entries = weightLogFeature.entries
+        let goalKilograms = weightLogFeature.goalKilograms
         let progressTask = Task { @MainActor [progress] in
             await progress.refresh(entries: entries, goalKilograms: goalKilograms)
         }
