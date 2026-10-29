@@ -5,6 +5,49 @@ import Testing
 
 @MainActor
 struct PurchaseFeatureTests {
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true], [false, true])
+    func failedOrCancelledCommerceAllowsRetry(restore: Bool, cancel: Bool) async {
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        func failRequest() async throws {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+            try Task.checkCancellation()
+            throw TestPurchaseError.productUnavailable
+        }
+        let client = InMemoryPurchaseClient()
+        client.purchaseResponse = { try await failRequest(); return .cancelled }
+        client.restoreResponse = { try await failRequest() }
+        let feature = PurchaseFeature(client: client)
+        let request = Task {
+            if restore { await feature.restorePurchases() }
+            else { await feature.purchaseHabits() }
+        }
+        var events = entered.stream.makeAsyncIterator()
+        _ = await events.next()
+        #expect(feature.isPurchasing)
+        if cancel { request.cancel() }
+        else { release.continuation.finish() }
+        await request.value
+        #expect(!feature.isPurchasing)
+        #expect(!feature.hasUnlockedHabits)
+        if cancel { #expect(feature.message == nil) }
+        else { #expect(feature.message != nil) }
+        client.purchaseResponse = nil
+        client.restoreResponse = nil
+        if restore {
+            client.hasPurchased = true
+            await feature.restorePurchases()
+            #expect(feature.message == "Trend Habits has been restored.")
+        } else {
+            await feature.purchaseHabits()
+            #expect(feature.message == nil)
+        }
+        #expect(feature.hasUnlockedHabits)
+        #expect(!feature.isPurchasing)
+    }
+
     @Test(.timeLimit(.minutes(1)), arguments: [false, true])
     func purchaseAndRestoreExcludeCompetingRequests(restoreFirst: Bool) async {
         let entered = AsyncStream<Void>.makeStream()

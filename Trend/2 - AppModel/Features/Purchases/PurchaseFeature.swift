@@ -71,6 +71,7 @@ final class PurchaseFeature {
 
     func purchaseHabits() async {
         guard !isPurchasing else { return }
+        message = nil
         isPurchasing = true
         defer { isPurchasing = false }
         do {
@@ -82,6 +83,8 @@ final class PurchaseFeature {
             case .cancelled:
                 break
             }
+        } catch is CancellationError {
+            // Cancellation ends this interaction without reporting a store failure.
         } catch {
             message = error.localizedDescription
         }
@@ -89,6 +92,7 @@ final class PurchaseFeature {
 
     func restorePurchases() async {
         guard !isPurchasing else { return }
+        message = nil
         isPurchasing = true
         defer { isPurchasing = false }
         do {
@@ -97,6 +101,8 @@ final class PurchaseFeature {
             message = hasUnlockedHabits
                 ? "Trend Habits has been restored."
                 : "No previous Trend Habits purchase was found."
+        } catch is CancellationError {
+            // Cancellation ends this interaction without reporting a store failure.
         } catch {
             message = error.localizedDescription
         }
