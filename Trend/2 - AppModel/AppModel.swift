@@ -8,7 +8,7 @@ import Foundation
 /// in those features.
 @MainActor
 final class AppModel {
-    /// The single production dependency graph used by the running app.
+    /// The single instance of our model. Use it to access Features.
     static let shared = AppModel.live()
 
     let weightEntryFeature: WeightEntryFeature
