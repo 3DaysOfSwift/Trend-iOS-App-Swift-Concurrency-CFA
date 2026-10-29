@@ -5,6 +5,34 @@ import Testing
 
 @MainActor
 struct PurchaseFeatureTests {
+    @Test(.timeLimit(.minutes(1)))
+    func oldStartupEntitlementCannotRelockCompletedPurchase() async {
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        let client = InMemoryPurchaseClient()
+        var calls = 0
+        client.entitlementResponse = {
+            calls += 1
+            if calls == 1 {
+                entered.continuation.yield(())
+                for await _ in release.stream { break }
+                return false
+            }
+            return true
+        }
+        let feature = PurchaseFeature(client: client)
+        let startup = Task { await feature.refreshStoreState() }
+        var events = entered.stream.makeAsyncIterator()
+        _ = await events.next()
+        await feature.purchaseHabits()
+        #expect(feature.hasUnlockedHabits)
+        release.continuation.yield(())
+        await startup.value
+        #expect(feature.hasUnlockedHabits)
+        #expect(!feature.isLoading)
+    }
+
     @Test func storeRefreshLoadsProductWithoutInventingAnEntitlement() async {
         let client = InMemoryPurchaseClient()
         let manager = PurchaseFeature(client: client)

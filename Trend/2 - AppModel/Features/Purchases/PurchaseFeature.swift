@@ -18,6 +18,7 @@ final class PurchaseFeature {
     private(set) var message: String?
     private(set) var newlyCompletedPurchaseID: UUID?
     private var hasCompletedInitialEntitlementCheck = false
+    private var entitlementRequestID = UUID()
 
     init(client: any PurchaseClient) {
         self.client = client
@@ -43,13 +44,13 @@ final class PurchaseFeature {
         let productTask = Task { @MainActor [client] in
             try await client.product(withID: Self.habitsProductID)
         }
-        let entitlementTask = Task { @MainActor [client] in
-            await client.hasEntitlement(for: Self.habitsProductID)
+        let entitlementTask = Task { @MainActor in
+            await refreshEntitlements()
         }
 
         do { habitsProduct = try await productTask.value }
         catch { message = error.localizedDescription }
-        hasUnlockedHabits = await entitlementTask.value
+        await entitlementTask.value
         isLoading = false
         hasCompletedInitialEntitlementCheck = true
     }
@@ -88,7 +89,11 @@ final class PurchaseFeature {
     func dismissMessage() { message = nil }
 
     private func refreshEntitlements() async {
-        hasUnlockedHabits = await client.hasEntitlement(for: Self.habitsProductID)
+        let requestID = UUID()
+        entitlementRequestID = requestID
+        let unlocked = await client.hasEntitlement(for: Self.habitsProductID)
+        guard entitlementRequestID == requestID else { return }
+        hasUnlockedHabits = unlocked
     }
 
 }

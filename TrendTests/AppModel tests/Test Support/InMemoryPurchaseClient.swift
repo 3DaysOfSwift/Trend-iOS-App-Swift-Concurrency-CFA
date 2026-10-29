@@ -12,6 +12,7 @@ final class InMemoryPurchaseClient: PurchaseClient {
         displayPrice: "£4.99"
     )
     private(set) var observationCount = 0
+    var entitlementResponse: (@MainActor () async -> Bool)?
     var hasPurchased = false
     var nextOutcome: PurchaseOutcome = .purchased
     var productError: (any Error)?
@@ -34,7 +35,10 @@ final class InMemoryPurchaseClient: PurchaseClient {
         return nextOutcome
     }
 
-    func hasEntitlement(for productID: String) async -> Bool { hasPurchased }
+    func hasEntitlement(for productID: String) async -> Bool {
+        if let entitlementResponse { return await entitlementResponse() }
+        return hasPurchased
+    }
     func restore() async throws {}
     func transactionUpdates() -> AsyncStream<Void> {
         observationCount += 1
