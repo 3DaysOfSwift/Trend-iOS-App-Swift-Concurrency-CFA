@@ -124,6 +124,39 @@ struct LocalPersistenceTests {
         await storage.close()
     }
 
+    @Test func failedRecoveryCopyPreservesRecordsAndAllowsRetry() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = LocalDataStore(directory: folder)
+        let original = WeightEntry(date: .now, kilograms: 70)
+        try await storage.saveWeight(WeightStore(entries: [original], goalKilograms: nil))
+        let backup = try await storage.snapshot()
+        let current = WeightEntry(date: .now, kilograms: 69)
+        try await storage.saveWeight(WeightStore(entries: [current], goalKilograms: nil))
+        // A file in place of the required directory produces a real filesystem
+        // failure before replacement, without altering database permissions.
+        let blocked = folder.appending(path: "Backups")
+        try Data("blocked".utf8).write(to: blocked)
+        await #expect(throws: (any Error).self) { try await storage.restore(backup) }
+        #expect(try await storage.loadWeight().entries == [current])
+        let later = WeightEntry(date: .now, kilograms: 68)
+        try await storage.saveWeight(WeightStore(entries: [later], goalKilograms: nil))
+        #expect(try await storage.loadWeight().entries == [later])
+        try FileManager.default.removeItem(at: blocked)
+        try await storage.restore(backup)
+        await storage.finishRestore()
+        #expect(try await storage.loadWeight().entries == [original])
+        let copies = try FileManager.default.contentsOfDirectory(
+            at: folder.appending(path: "Backups/Before-restore"), includingPropertiesForKeys: nil)
+        #expect(copies.count == 1)
+        let copy = try #require(copies.first)
+        #expect(try JSONDecoder().decode(RecoverySnapshot.self, from: Data(contentsOf: copy)).weight.entries == [later])
+        await storage.close()
+        let reopened = LocalDataStore(directory: folder)
+        #expect(try await reopened.loadWeight().entries == [original])
+        await reopened.close()
+    }
+
     @Test func invalidBackupDoesNotReplaceRecords() async throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: folder) }
