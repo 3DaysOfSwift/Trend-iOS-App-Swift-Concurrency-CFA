@@ -39,17 +39,20 @@ final class WeightLogManager {
         }
     }
 
-    func add(_ draft: WeightEntryDraft, unit: WeightUnit) async throws {
+    @discardableResult
+    func add(_ draft: WeightEntryDraft, unit: WeightUnit) async throws -> WeightEntry {
         await waitForPreviousOperation()
         defer { finishOperation() }
         try await loadBeforeEditing()
         var candidate = store
-        candidate.entries.append(WeightEntry(
+        let entry = WeightEntry(
             date: draft.date,
             kilograms: try draft.kilograms(using: unit),
             note: draft.note.trimmed
-        ))
+        )
+        candidate.entries.append(entry)
         try await commit(candidate)
+        return entry
     }
 
     func update(_ entry: WeightEntry, with draft: WeightEntryDraft, unit: WeightUnit) async throws {

@@ -99,11 +99,7 @@ final class WeightEntryFeature {
 
     func checkIn(_ draft: WeightEntryDraft) async throws -> DailyTrendAssessment {
         try validateEntryDate(draft.date)
-        let existingIDs = Set(weightLog.entries.map(\.id))
-        try await weightLog.add(draft, unit: settings.unit)
-        guard let newEntry = weightLog.entries.first(where: { !existingIDs.contains($0.id) }) else {
-            preconditionFailure("A successful check-in must create a weight entry.")
-        }
+        let newEntry = try await weightLog.add(draft, unit: settings.unit)
 
         await refreshDerivedFeatures()
         let assessment = await dailyTrend.assess(
