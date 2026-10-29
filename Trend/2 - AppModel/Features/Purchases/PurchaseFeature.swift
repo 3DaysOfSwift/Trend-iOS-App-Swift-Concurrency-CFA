@@ -9,8 +9,8 @@ final class PurchaseFeature {
     static let habitsProductID = "com.mattharding.Trend.habits"
 
     private let client: any PurchaseClient
-    private var storeRefreshTask: Task<Void, Never>?
-    private var transactionUpdatesTask: Task<Void, Never>?
+    @ObservationIgnored private var storeRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var transactionUpdatesTask: Task<Void, Never>?
 
     private(set) var habitsProduct: PurchaseProduct?
     private(set) var hasUnlockedHabits = false
@@ -25,12 +25,14 @@ final class PurchaseFeature {
         self.client = client
     }
 
+    deinit { transactionUpdatesTask?.cancel() }
+
     func observeTransactionUpdates() {
         guard transactionUpdatesTask == nil else { return }
         let updates = client.transactionUpdates()
         transactionUpdatesTask = Task { @MainActor [weak self] in
             for await _ in updates {
-                guard let self else { return }
+                guard !Task.isCancelled, let self else { return }
                 let wasUnlocked = self.hasUnlockedHabits
                 await self.refreshEntitlements()
                 if self.hasCompletedInitialEntitlementCheck, !wasUnlocked, self.hasUnlockedHabits {

@@ -5,6 +5,35 @@ import Testing
 
 @MainActor
 struct PurchaseFeatureTests {
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func releasingFeatureCancelsTransactionObservation(afterUpdate: Bool) async {
+        let stopped = AsyncStream<Bool>.makeStream()
+        let checked = AsyncStream<Void>.makeStream()
+        defer { stopped.continuation.finish(); checked.continuation.finish() }
+        let client = InMemoryPurchaseClient { reason in
+            if case .cancelled = reason { stopped.continuation.yield(true) }
+            else { stopped.continuation.yield(false) }
+        }
+        client.entitlementResponse = {
+            checked.continuation.yield(())
+            return true
+        }
+        var feature: PurchaseFeature? = PurchaseFeature(client: client)
+        weak var owner = feature
+        feature?.observeTransactionUpdates()
+        feature?.observeTransactionUpdates()
+        #expect(client.observationCount == 1)
+        if afterUpdate {
+            client.completePurchaseOutsideThePurchaseSheet()
+            var events = checked.stream.makeAsyncIterator()
+            _ = await events.next()
+        }
+        feature = nil
+        #expect(owner == nil)
+        var termination = stopped.stream.makeAsyncIterator()
+        #expect(await termination.next() == true)
+    }
+
     @Test(.timeLimit(.minutes(1)))
     func overlappingRefreshesShareWorkDespiteCallerCancellation() async {
         let entered = AsyncStream<Void>.makeStream()

@@ -20,10 +20,11 @@ final class InMemoryPurchaseClient: PurchaseClient {
     private let updates: AsyncStream<Void>
     private let updateContinuation: AsyncStream<Void>.Continuation
 
-    init() {
+    init(onTermination: (@Sendable (AsyncStream<Void>.Continuation.Termination) -> Void)? = nil) {
         let transactionUpdates = AsyncStream<Void>.makeStream()
         updates = transactionUpdates.stream
         updateContinuation = transactionUpdates.continuation
+        updateContinuation.onTermination = onTermination
     }
 
     func product(withID id: String) async throws -> PurchaseProduct? {
