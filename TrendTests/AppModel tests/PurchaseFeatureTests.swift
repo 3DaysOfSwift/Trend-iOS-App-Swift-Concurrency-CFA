@@ -6,6 +6,52 @@ import Testing
 @MainActor
 struct PurchaseFeatureTests {
     @Test(.timeLimit(.minutes(1)))
+    func overlappingRefreshesShareWorkDespiteCallerCancellation() async {
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        let joined = AsyncStream<Void>.makeStream()
+        defer {
+            entered.continuation.finish()
+            release.continuation.finish()
+            joined.continuation.finish()
+        }
+        let client = InMemoryPurchaseClient()
+        let product = client.product
+        var requests = 0
+        client.productResponse = {
+            requests += 1
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+            return product
+        }
+        let feature = PurchaseFeature(client: client)
+        var firstFinished = false
+        var secondFinished = false
+        let first = Task { await feature.refreshStoreState(); firstFinished = true }
+        var events = entered.stream.makeAsyncIterator()
+        _ = await events.next()
+        let second = Task {
+            joined.continuation.yield(())
+            await feature.refreshStoreState()
+            secondFinished = true
+        }
+        var admission = joined.stream.makeAsyncIterator()
+        _ = await admission.next()
+        first.cancel()
+        #expect(feature.isLoading)
+        #expect(!firstFinished && !secondFinished)
+        release.continuation.finish()
+        await first.value
+        await second.value
+        #expect(requests == 1)
+        #expect(firstFinished && secondFinished)
+        #expect(!feature.isLoading)
+        #expect(feature.habitsProduct?.id == product.id)
+        await feature.refreshStoreState()
+        #expect(requests == 2)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func oldStartupEntitlementCannotRelockCompletedPurchase() async {
         let entered = AsyncStream<Void>.makeStream()
         let release = AsyncStream<Void>.makeStream()

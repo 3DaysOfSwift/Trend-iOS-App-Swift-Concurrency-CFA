@@ -9,6 +9,7 @@ final class PurchaseFeature {
     static let habitsProductID = "com.mattharding.Trend.habits"
 
     private let client: any PurchaseClient
+    private var storeRefreshTask: Task<Void, Never>?
     private var transactionUpdatesTask: Task<Void, Never>?
 
     private(set) var habitsProduct: PurchaseProduct?
@@ -39,8 +40,20 @@ final class PurchaseFeature {
         }
     }
 
+    /// Repeated callers share the active refresh. A departing caller does not
+    /// cancel the store state needed by the rest of the app.
     func refreshStoreState() async {
+        if let storeRefreshTask { await storeRefreshTask.value; return }
         isLoading = true
+        let task = Task {
+            defer { storeRefreshTask = nil; isLoading = false }
+            await loadStoreState()
+        }
+        storeRefreshTask = task
+        await task.value
+    }
+
+    private func loadStoreState() async {
         let productTask = Task { @MainActor [client] in
             try await client.product(withID: Self.habitsProductID)
         }
@@ -51,7 +64,6 @@ final class PurchaseFeature {
         do { habitsProduct = try await productTask.value }
         catch { message = error.localizedDescription }
         await entitlementTask.value
-        isLoading = false
         hasCompletedInitialEntitlementCheck = true
     }
 
