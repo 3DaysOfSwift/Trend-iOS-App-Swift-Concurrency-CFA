@@ -43,11 +43,7 @@ struct EntryEditorView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task {
-                            if await viewModel.save() { dismiss() }
-                        }
-                    }
+                    Button("Save") { viewModel.requestSave() }
                         .fontWeight(.semibold)
                         .disabled(!viewModel.canSave)
                 }
@@ -58,6 +54,9 @@ struct EntryEditorView: View {
             }
         }
         .interactiveDismissDisabled(viewModel.isSaving)
+        .onChange(of: viewModel.didSave) { _, saved in
+            if saved { dismiss() }
+        }
         .task(id: viewModel.inputStyle) {
             weightIsFocused = false
             guard viewModel.inputStyle == .keyboard else { return }

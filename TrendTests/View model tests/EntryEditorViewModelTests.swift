@@ -6,6 +6,29 @@ import Testing
 
 @MainActor
 struct EntryEditorViewModelTests {
+    @Test(.timeLimit(.minutes(1))) func repeatedSaveSharesOneWrite() async throws {
+        let repository = EditorSaveRepository()
+        let model = EntryEditorViewModel(editor: TestAppModelFactory.make(repository: repository).weightEntryFeature)
+        model.draft.value = "75"
+        let first = Task { await model.save() }
+        await repository.waitForSave()
+        var second: Task<Bool, Never>?
+        await withCheckedContinuation { started in
+            second = Task {
+                started.resume()
+                return await model.save()
+            }
+        }
+        #expect(model.isSaving)
+        await repository.finishSave()
+        #expect(await first.value)
+        let repeated = try #require(second)
+        #expect(await repeated.value)
+        #expect(await repository.load().entries.count == 1)
+        #expect(await repository.writes == 1)
+        #expect(!model.isSaving)
+    }
+
     @Test func newDraftAndDateBoundaryComeFromAppModelClock() {
         let now = Date(timeIntervalSince1970: 1_000)
         let viewModel = EntryEditorViewModel(
@@ -91,4 +114,29 @@ struct EntryEditorViewModelTests {
         #expect(!didSave)
         #expect(viewModel.errorMessage == "The test repository could not save.")
     }
+}
+
+private actor EditorSaveRepository: WeightRepository, CloudSyncStatusProviding {
+    func cloudStatus() -> CloudSyncStatus { .unavailable }
+    private var store = WeightStore(entries: [], goalKilograms: nil)
+    private var release: CheckedContinuation<Void, Never>?
+    private var started: CheckedContinuation<Void, Never>?
+    private(set) var writes = 0
+    func load() -> WeightStore { store }
+    func save(_ candidate: WeightStore) async throws {
+        writes += 1
+        if writes == 1 {
+            await withCheckedContinuation { continuation in
+                release = continuation
+                started?.resume()
+                started = nil
+            }
+        }
+        store = candidate
+    }
+    func waitForSave() async {
+        if release != nil { return }
+        await withCheckedContinuation { started = $0 }
+    }
+    func finishSave() { release?.resume(); release = nil }
 }
