@@ -60,6 +60,42 @@ struct BackupFeatureTests {
         await storage.close()
     }
 
+    @Test(arguments: [true, false])
+    func failedUploadPreservesLocalBackupAndRetriesWithoutAnotherArchive(failWeekly: Bool) async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let suite = UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let storage = LocalDataStore(directory: root.appending(path: "Store"))
+        let entry = WeightEntry(date: .now, kilograms: 70)
+        try await storage.saveWeight(WeightStore(entries: [entry], goalKilograms: nil))
+        let blocked = root.appending(path: "upload-blocked")
+        try Data().write(to: blocked)
+        let local = root.appending(path: "Backups")
+        let cloud = root.appending(path: "Cloud")
+        let feature = BackupFeature(storage: storage,
+            files: RecoveryBackupFiles(folder: local,
+                access: RetryableBackupAccess(blocked: blocked, failWeekly: failWeekly), cloudFolder: { cloud }),
+            settings: UserSettingsStore(cloudSync: OfflineCloudStatus(), defaults: defaults), reload: {})
+        await feature.backUpNow()
+        #expect(feature.status.contains("Backup needs attention"))
+        let bytes = try Data(contentsOf: local.appending(path: "Latest.json"))
+        #expect(try JSONDecoder().decode(RecoverySnapshot.self, from: bytes).weight.entries == [entry])
+        let archives = try FileManager.default.contentsOfDirectory(at: local.appending(path: "Weekly"), includingPropertiesForKeys: nil)
+        #expect(archives.count == 1)
+        try FileManager.default.removeItem(at: blocked)
+        await feature.triggerDataBackupIfNeeded()
+        #expect(feature.status == "Saved on this iPhone. iCloud upload pending.")
+        #expect(try Data(contentsOf: local.appending(path: "Latest.json")) == bytes)
+        #expect(try FileManager.default.contentsOfDirectory(at: local.appending(path: "Weekly"), includingPropertiesForKeys: nil) == archives)
+        #expect(!FileManager.default.fileExists(atPath: local.appending(path: "Previous.json").path))
+        let installation = try String(contentsOf: local.appending(path: "Installation.txt"), encoding: .utf8)
+        #expect(try Data(contentsOf: cloud.appending(path: "Backups/\(installation)/Latest.json")) == bytes)
+        #expect(try await storage.loadWeight().entries == [entry])
+        await storage.close()
+    }
+
     @Test func emptyInstallationDoesNotCreateOrReplaceCloudBackups() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -83,4 +119,32 @@ struct BackupFeatureTests {
 
 private struct OfflineCloudStatus: CloudSyncStatusProviding {
     func cloudStatus() async -> CloudSyncStatus { .unavailable }
+}
+
+private struct RetryableBackupAccess: BackupFileAccess {
+    let blocked: URL
+    let failWeekly: Bool
+
+    func replaceSnapshot(_ data: Data, at target: URL) throws {
+        if FileManager.default.fileExists(atPath: blocked.path) {
+            throw CocoaError(.fileWriteNoPermission)
+        }
+        try data.write(to: target, options: .atomic)
+    }
+
+    func writeNewSnapshot(_ data: Data, to target: URL) throws {
+        if FileManager.default.fileExists(atPath: target.path) {
+            guard try Data(contentsOf: target) == data else {
+                throw CocoaError(.fileWriteFileExists)
+            }
+            return
+        }
+        if failWeekly {
+            try replaceSnapshot(data, at: target)
+        } else {
+            try data.write(to: target, options: .atomic)
+        }
+    }
+
+    func read(_ url: URL) throws -> Data { try Data(contentsOf: url) }
 }
