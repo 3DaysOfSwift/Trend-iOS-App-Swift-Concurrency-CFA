@@ -7,7 +7,7 @@ import CoreData
 @MainActor @Observable
 final class BackupFeature {
     private let storage: LocalDataStore
-    private let files: RecoveryBackupFiles
+    private let files: any RecoveryBackupProviding
     private let settings: UserSettingsStore
     private let reload: @MainActor () async -> Void
     @ObservationIgnored private var observation: Task<Void, Never>?
@@ -19,7 +19,7 @@ final class BackupFeature {
     private(set) var status = "Local storage. Backup not checked yet."
     private(set) var isRestoring = false
 
-    init(storage: LocalDataStore, files: RecoveryBackupFiles, settings: UserSettingsStore,
+    init(storage: LocalDataStore, files: any RecoveryBackupProviding, settings: UserSettingsStore,
          reload: @escaping @MainActor () async -> Void) {
         self.storage = storage
         self.files = files

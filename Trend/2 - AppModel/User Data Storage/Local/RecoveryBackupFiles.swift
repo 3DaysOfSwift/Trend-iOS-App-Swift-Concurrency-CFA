@@ -2,8 +2,14 @@
 
 import Foundation
 
+protocol RecoveryBackupProviding: Sendable {
+    func prepareBackupIfNeeded(_ snapshot: RecoverySnapshot, force: Bool) async throws -> URL
+    func uploadPreparedBackup(_ localURL: URL) async throws -> Bool
+    func preview(_ url: URL) async throws -> RecoverySnapshot
+}
+
 /// Backup documents only. This type cannot write to the live database.
-actor RecoveryBackupFiles {
+actor RecoveryBackupFiles: RecoveryBackupProviding {
     private let access: any BackupFileAccess
     private let folder: URL
     private let cloudFolder: @Sendable () -> URL?

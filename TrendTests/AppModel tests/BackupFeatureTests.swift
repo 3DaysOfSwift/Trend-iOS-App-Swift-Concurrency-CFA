@@ -6,6 +6,58 @@ import Testing
 
 @MainActor
 struct BackupFeatureTests {
+    @Test(.timeLimit(.minutes(1)))
+    func manualRequestDuringAutomaticUploadWaitsForFreshForcedBackup() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let suite = UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let storage = LocalDataStore(directory: root)
+        let first = WeightEntry(date: .now, kilograms: 70)
+        try await storage.saveWeight(WeightStore(entries: [first], goalKilograms: nil))
+        let uploads = AsyncStream<Int>.makeStream()
+        let releases = AsyncStream<Void>.makeStream()
+        let manualEntered = AsyncStream<Void>.makeStream()
+        defer {
+            uploads.continuation.finish()
+            releases.continuation.finish()
+            manualEntered.continuation.finish()
+        }
+        let files = HeldBackupUploads(events: uploads.continuation, releases: releases.stream)
+        let feature = BackupFeature(storage: storage, files: files,
+            settings: UserSettingsStore(cloudSync: OfflineCloudStatus(), defaults: defaults), reload: {})
+        var automaticFinished = false
+        var manualFinished = false
+        let automatic = Task {
+            await feature.triggerDataBackupIfNeeded()
+            automaticFinished = true
+        }
+        var events = uploads.stream.makeAsyncIterator()
+        #expect(await events.next() == 1)
+        let second = WeightEntry(date: .now, kilograms: 69)
+        try await storage.saveWeight(WeightStore(entries: [second], goalKilograms: nil))
+        let manual = Task {
+            manualEntered.continuation.yield(())
+            await feature.backUpNow()
+            manualFinished = true
+        }
+        var admitted = manualEntered.stream.makeAsyncIterator()
+        _ = await admitted.next()
+        releases.continuation.yield(())
+        #expect(await events.next() == 2)
+        #expect(!automaticFinished)
+        #expect(!manualFinished)
+        #expect(await files.forces == [false, true])
+        #expect(await files.records == [[first], [second]])
+        releases.continuation.yield(())
+        await automatic.value
+        await manual.value
+        #expect(automaticFinished && manualFinished)
+        #expect(feature.status == "Saved on this iPhone. iCloud upload pending.")
+        await storage.close()
+    }
+
     @Test(.timeLimit(.minutes(1)), arguments: [false, true])
     func restoreProtectsRecordsUntilReloadFinishes(cancelCaller: Bool) async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -147,4 +199,35 @@ private struct RetryableBackupAccess: BackupFileAccess {
     }
 
     func read(_ url: URL) throws -> Data { try Data(contentsOf: url) }
+}
+
+private actor HeldBackupUploads: RecoveryBackupProviding {
+    let events: AsyncStream<Int>.Continuation
+    let releases: AsyncStream<Void>
+    private(set) var forces: [Bool] = []
+    private(set) var records: [[WeightEntry]] = []
+    private var uploads = 0
+
+    init(events: AsyncStream<Int>.Continuation, releases: AsyncStream<Void>) {
+        self.events = events
+        self.releases = releases
+    }
+
+    func prepareBackupIfNeeded(_ snapshot: RecoverySnapshot, force: Bool) -> URL {
+        forces.append(force)
+        records.append(snapshot.weight.entries)
+        return URL(fileURLWithPath: "/unused-backup-fixture")
+    }
+
+    func uploadPreparedBackup(_ localURL: URL) async -> Bool {
+        uploads += 1
+        events.yield(uploads)
+        var release = releases.makeAsyncIterator()
+        _ = await release.next()
+        return false
+    }
+
+    func preview(_ url: URL) throws -> RecoverySnapshot {
+        throw CocoaError(.fileReadNoSuchFile)
+    }
 }
