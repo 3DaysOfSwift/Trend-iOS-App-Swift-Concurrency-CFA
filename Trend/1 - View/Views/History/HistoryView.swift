@@ -23,7 +23,7 @@ struct HistoryView: View {
                                 Button { entryBeingEdited = entry } label: { entryRow(entry) }
                                     .buttonStyle(.plain)
                                     .swipeActions {
-                                        Button(role: .destructive) { Task { await viewModel.delete(entry) } } label: {
+                                        Button(role: .destructive) { viewModel.requestDelete(entry) } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
                                     }
