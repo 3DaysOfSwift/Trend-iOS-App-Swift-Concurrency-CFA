@@ -5,7 +5,7 @@ import Foundation
 /// The composition root for the application.
 ///
 /// AppModel constructs and exposes Features. Application behavior lives
-/// in those features rather than accumulating in this assembly type.
+/// in those features.
 @MainActor
 final class AppModel {
     /// The single production dependency graph used by the running app.
