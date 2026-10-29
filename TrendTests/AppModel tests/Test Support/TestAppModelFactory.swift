@@ -20,37 +20,36 @@ enum TestAppModelFactory {
         let weightLog = WeightLogManager(repository: repository)
         let progress = ProgressTracker(currentDate: currentDate)
         let settings = UserSettingsStore(cloudSync: repository, defaults: defaults)
-        let dailyTips = DailyTipManager(defaults: defaults, currentDate: currentDate)
+        let dailyTipsFeature = DailyTipsFeature(defaults: defaults, currentDate: currentDate)
         let dailyStreak = DailyStreakManager(trend: dailyTrend, currentDate: currentDate)
-        let weightEntries = WeightEntryManager(
+        let weightEntryFeature = WeightEntryFeature(
             weightLog: weightLog,
             progress: progress,
             settings: settings,
             dailyTrend: dailyTrend,
-            dailyTips: dailyTips,
             dailyStreak: dailyStreak,
             currentDate: currentDate
         )
         return AppModel(
-            weightEntries: weightEntries,
-            progressFeature: ProgressManager(
+            weightEntryFeature: weightEntryFeature,
+            progressFeature: ProgressFeature(
                 progress: progress,
                 weightLog: weightLog,
                 settings: settings
             ),
-            settingsFeature: SettingsManager(
+            settingsFeature: SettingsFeature(
                 settings: settings,
                 weightLog: weightLog,
                 progress: progress,
                 dailyStreak: dailyStreak,
                 backupFiles: BackupFileManager()
             ),
-            habitsFeature: HabitsManager(storage: InMemoryHabitDataStore(), currentDate: currentDate),
-            purchaseFeature: PurchaseManager(client: purchaseClient),
-            dailyTips: dailyTips,
-            backupFeature: BackupManager(storage: LocalDataStore(directory: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)),
+            habitsFeature: HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: currentDate),
+            purchaseFeature: PurchaseFeature(client: purchaseClient),
+            dailyTipsFeature: dailyTipsFeature,
+            backupFeature: BackupFeature(storage: LocalDataStore(directory: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)),
                 files: RecoveryBackupFiles(folder: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString), cloudFolder: { nil }), settings: settings, reload: {}),
-            importFeature: WeightImportManager(weightLog: weightLog) { await weightEntries.refresh() }
+            weightImportFeature: WeightImportFeature(weightLog: weightLog) { await weightEntryFeature.refresh() }
         )
     }
 }

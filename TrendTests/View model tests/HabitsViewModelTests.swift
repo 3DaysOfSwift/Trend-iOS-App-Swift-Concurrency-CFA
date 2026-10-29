@@ -7,9 +7,9 @@ import Testing
 @MainActor
 struct HabitsViewModelTests {
     @Test func purchaseReportsOnlyANewUnlockAsNew() async {
-        let purchaseManager = PurchaseManager(client: InMemoryPurchaseClient())
+        let purchaseManager = PurchaseFeature(client: InMemoryPurchaseClient())
         let viewModel = HabitsViewModel(
-            habitsFeature: HabitsManager(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate),
+            habitsFeature: HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate),
             purchaseFeature: purchaseManager
         )
 
@@ -18,11 +18,11 @@ struct HabitsViewModelTests {
     }
 
     @Test func dashboardReflectsSelectedHabits() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
         let habit = Habit(type: .water)
         let viewModel = HabitsViewModel(
             habitsFeature: manager,
-            purchaseFeature: PurchaseManager(client: InMemoryPurchaseClient())
+            purchaseFeature: PurchaseFeature(client: InMemoryPurchaseClient())
         )
         #expect(viewModel.habits.isEmpty)
         try await manager.enableSelectedHabits([habit.id])

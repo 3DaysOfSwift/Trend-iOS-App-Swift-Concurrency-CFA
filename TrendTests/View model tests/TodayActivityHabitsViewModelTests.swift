@@ -8,7 +8,7 @@ import Testing
 struct TodayActivityHabitsViewModelTests {
     @Test func catalogOffersMeditationAndExcludesRemovedHabits() async throws {
         #expect(Set(Habit.availableHabits.map(\.id)) == ["morningMood", "gymAttendance", "runningDistance", "sauna", "yoga", "meditation"])
-        let feature = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { .now })
+        let feature = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { .now })
         try await feature.enableSelectedHabits(["water", "wakeTime", "sleep", "exerciseSets", "gymRepetitions", "yoga", "meditation"])
         #expect(Set(feature.enabledHabits.map(\.id)) == ["yoga", "meditation"])
         let model = TodayActivityHabitsViewModel(feature: feature)
@@ -20,7 +20,7 @@ struct TodayActivityHabitsViewModelTests {
     }
 
     @Test func activitiesIncludeOnlyEnabledAnswersAndRunningAndToggleBothWays() async throws {
-        let feature = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { .now })
+        let feature = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { .now })
         try await feature.enableSelectedHabits(["yoga", "sauna", "runningDistance", "water"])
         let model = TodayActivityHabitsViewModel(feature: feature)
         #expect(Set(model.habits.map(\.id)) == ["yoga", "sauna", "runningDistance"])
@@ -33,7 +33,7 @@ struct TodayActivityHabitsViewModelTests {
     }
 
     @Test func runningOnlyHighlightsAfterSuccessfulDistanceSave() async throws {
-        let feature = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { .now })
+        let feature = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { .now })
         try await feature.enableSelectedHabits(["runningDistance"])
         let activity = TodayActivityHabitsViewModel(feature: feature)
         let run = Habit(type: .runningDistance)

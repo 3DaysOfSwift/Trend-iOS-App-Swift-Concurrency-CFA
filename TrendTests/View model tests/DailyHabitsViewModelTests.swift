@@ -7,18 +7,18 @@ import Testing
 @MainActor
 struct DailyHabitsViewModelTests {
     @Test func lockedTodayCannotRecordAPaidHabit() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { .now })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { .now })
         try await manager.enableSelectedHabits(["yoga"])
-        let model = DailyHabitsViewModel(habitsFeature: manager, purchaseFeature: PurchaseManager(client: InMemoryPurchaseClient()))
+        let model = DailyHabitsViewModel(habitsFeature: manager, purchaseFeature: PurchaseFeature(client: InMemoryPurchaseClient()))
         await model.record(Habit(type: .yoga), value: 1)
         #expect(!model.isUnlocked)
         #expect(manager.entries.isEmpty)
     }
 
     @Test func unlockedTodayRecordsAndExposesSharedValues() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { .now })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { .now })
         try await manager.enableSelectedHabits(["yoga"])
-        let purchase = PurchaseManager(client: InMemoryPurchaseClient())
+        let purchase = PurchaseFeature(client: InMemoryPurchaseClient())
         await purchase.purchaseHabits()
         let model = DailyHabitsViewModel(habitsFeature: manager, purchaseFeature: purchase)
         let otherScreen = DailyHabitsViewModel(habitsFeature: manager, purchaseFeature: purchase)
@@ -29,9 +29,9 @@ struct DailyHabitsViewModelTests {
     }
 
     @Test func failedValidationPreservesDraftAndDoesNotCelebrate() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { .now })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { .now })
         try await manager.enableSelectedHabits(["sauna"])
-        let purchase = PurchaseManager(client: InMemoryPurchaseClient())
+        let purchase = PurchaseFeature(client: InMemoryPurchaseClient())
         await purchase.purchaseHabits()
         let model = DailyHabitsViewModel(habitsFeature: manager, purchaseFeature: purchase)
         model.drafts["sauna"] = -3
@@ -43,7 +43,7 @@ struct DailyHabitsViewModelTests {
     }
 
     @Test func labelsDistinguishMissingNoAndMood() {
-        let model = DailyHabitsViewModel(habitsFeature: HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { .now }), purchaseFeature: PurchaseManager(client: InMemoryPurchaseClient()))
+        let model = DailyHabitsViewModel(habitsFeature: HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { .now }), purchaseFeature: PurchaseFeature(client: InMemoryPurchaseClient()))
         #expect(model.description(for: Habit(type: .sauna), value: nil) == "Not recorded")
         #expect(model.description(for: Habit(type: .sauna), value: 0) == "No")
         #expect(model.description(for: Habit(type: .morningMood), value: 5) == "🤩 Energetic")

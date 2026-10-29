@@ -4,10 +4,10 @@ import Testing
 @testable import Trend
 
 @MainActor
-struct PurchaseManagerTests {
+struct PurchaseFeatureTests {
     @Test func storeRefreshLoadsProductWithoutInventingAnEntitlement() async {
         let client = InMemoryPurchaseClient()
-        let manager = PurchaseManager(client: client)
+        let manager = PurchaseFeature(client: client)
 
         manager.observeTransactionUpdates()
         await manager.refreshStoreState()
@@ -19,7 +19,7 @@ struct PurchaseManagerTests {
 
     @Test func completedPurchaseUnlocksHabits() async {
         let client = InMemoryPurchaseClient()
-        let manager = PurchaseManager(client: client)
+        let manager = PurchaseFeature(client: client)
         manager.observeTransactionUpdates()
         await manager.refreshStoreState()
 
@@ -31,7 +31,7 @@ struct PurchaseManagerTests {
     @Test func cancelledPurchaseLeavesHabitsLocked() async {
         let client = InMemoryPurchaseClient()
         client.nextOutcome = .cancelled
-        let manager = PurchaseManager(client: client)
+        let manager = PurchaseFeature(client: client)
         manager.observeTransactionUpdates()
         await manager.refreshStoreState()
 
@@ -45,7 +45,7 @@ struct PurchaseManagerTests {
         let client = InMemoryPurchaseClient()
         client.hasPurchased = true
         client.productError = TestPurchaseError.productUnavailable
-        let manager = PurchaseManager(client: client)
+        let manager = PurchaseFeature(client: client)
 
         await manager.refreshStoreState()
 
@@ -57,7 +57,7 @@ struct PurchaseManagerTests {
     @Test func restoreReadsTheCustomersExistingEntitlement() async {
         let client = InMemoryPurchaseClient()
         client.hasPurchased = true
-        let manager = PurchaseManager(client: client)
+        let manager = PurchaseFeature(client: client)
 
         await manager.restorePurchases()
 
@@ -67,7 +67,7 @@ struct PurchaseManagerTests {
 
     @Test func delayedApprovalPublishesANewPurchaseEvent() async {
         let client = InMemoryPurchaseClient()
-        let manager = PurchaseManager(client: client)
+        let manager = PurchaseFeature(client: client)
         manager.observeTransactionUpdates()
         await manager.refreshStoreState()
 

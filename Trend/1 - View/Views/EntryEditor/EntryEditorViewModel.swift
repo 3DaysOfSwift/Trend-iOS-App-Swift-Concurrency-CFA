@@ -6,7 +6,7 @@ import Observation
 @MainActor
 @Observable
 final class EntryEditorViewModel {
-    private let editor: WeightEntryManager
+    private let editor: WeightEntryFeature
     private let entry: WeightEntry?
 
     var draft: WeightEntryDraft
@@ -14,7 +14,7 @@ final class EntryEditorViewModel {
     private(set) var isSaving = false
 
     init(
-        editor: WeightEntryManager = AppModel.shared.weightEntries,
+        editor: WeightEntryFeature = AppModel.shared.weightEntryFeature,
         entry: WeightEntry? = nil
     ) {
         self.editor = editor

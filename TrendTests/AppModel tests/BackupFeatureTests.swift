@@ -5,7 +5,7 @@ import Testing
 @testable import Trend
 
 @MainActor
-struct BackupManagerTests {
+struct BackupFeatureTests {
     @Test func emptyInstallationDoesNotCreateOrReplaceCloudBackups() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -16,7 +16,7 @@ struct BackupManagerTests {
         try sentinel.write(to: existing)
         let storage = LocalDataStore(directory: root.appending(path: "NewPhone"))
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
-        let manager = BackupManager(storage: storage,
+        let manager = BackupFeature(storage: storage,
             files: RecoveryBackupFiles(folder: root.appending(path: "Backups"), cloudFolder: { cloud }),
             settings: UserSettingsStore(cloudSync: OfflineCloudStatus(), defaults: defaults), reload: {})
         await manager.backUpNow()

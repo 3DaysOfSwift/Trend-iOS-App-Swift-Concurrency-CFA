@@ -9,8 +9,8 @@ struct TodayViewModelTests {
     @Test func habitsRequireWeightRecordedForTodayAndSurviveViewRecreation() async {
         let now = Date()
         let appModel = TestAppModelFactory.make(currentDate: { now })
-        await appModel.weightEntries.refresh()
-        let viewModel = TodayViewModel(today: appModel.weightEntries)
+        await appModel.weightEntryFeature.refresh()
+        let viewModel = TodayViewModel(weightEntryFeature: appModel.weightEntryFeature, dailyTipsFeature: appModel.dailyTipsFeature)
         #expect(!viewModel.showsHabits)
 
         viewModel.draft = WeightEntryDraft(
@@ -23,21 +23,21 @@ struct TodayViewModelTests {
         viewModel.draft = WeightEntryDraft(date: now, value: "72.4", note: "")
         #expect(await viewModel.save())
         #expect(viewModel.showsHabits)
-        #expect(TodayViewModel(today: appModel.weightEntries).showsHabits)
+        #expect(TodayViewModel(weightEntryFeature: appModel.weightEntryFeature, dailyTipsFeature: appModel.dailyTipsFeature).showsHabits)
     }
 
     @Test func newDraftAndDateBoundaryComeFromAppModelClock() {
         let now = Date(timeIntervalSince1970: 1_000)
-        let viewModel = TodayViewModel(
-            today: TestAppModelFactory.make(currentDate: { now }).weightEntries
-        )
+        let app = TestAppModelFactory.make(currentDate: { now })
+        let viewModel = TodayViewModel(weightEntryFeature: app.weightEntryFeature, dailyTipsFeature: app.dailyTipsFeature)
 
         #expect(viewModel.draft.date == now)
         #expect(viewModel.latestPermittedEntryDate == now)
     }
 
     @Test func emptyStateHasNoLatestEntryOrChange() {
-        let viewModel = TodayViewModel(today: TestAppModelFactory.make().weightEntries)
+        let app = TestAppModelFactory.make()
+        let viewModel = TodayViewModel(weightEntryFeature: app.weightEntryFeature, dailyTipsFeature: app.dailyTipsFeature)
 
         #expect(viewModel.latestEntry == nil)
         #expect(viewModel.changeKilograms == nil)
@@ -50,8 +50,8 @@ struct TodayViewModelTests {
         let latest = WeightEntry(date: now, kilograms: 80)
         let repository = InMemoryWeightRepository(store: .init(entries: [older, latest], goalKilograms: nil))
         let appModel = TestAppModelFactory.make(repository: repository, unit: .pounds)
-        await appModel.weightEntries.refresh()
-        let viewModel = TodayViewModel(today: appModel.weightEntries)
+        await appModel.weightEntryFeature.refresh()
+        let viewModel = TodayViewModel(weightEntryFeature: appModel.weightEntryFeature, dailyTipsFeature: appModel.dailyTipsFeature)
 
         #expect(viewModel.latestEntry == latest)
         #expect(viewModel.changeKilograms == -2)
@@ -61,7 +61,7 @@ struct TodayViewModelTests {
     @Test func savingWeightPublishesEntryAndKeepsSubmittedDraft() async {
         let repository = InMemoryWeightRepository()
         let appModel = TestAppModelFactory.make(repository: repository)
-        let viewModel = TodayViewModel(today: appModel.weightEntries)
+        let viewModel = TodayViewModel(weightEntryFeature: appModel.weightEntryFeature, dailyTipsFeature: appModel.dailyTipsFeature)
         viewModel.draft = WeightEntryDraft(
             date: Date(timeIntervalSince1970: 456),
             value: "72.5",
@@ -71,16 +71,38 @@ struct TodayViewModelTests {
         let didSave = await viewModel.save()
 
         #expect(didSave)
-        #expect(appModel.weightEntries.latestWeightEntry?.kilograms == 72.5)
-        #expect(appModel.weightEntries.latestWeightEntry?.note == "Morning")
+        #expect(appModel.weightEntryFeature.latestWeightEntry?.kilograms == 72.5)
+        #expect(appModel.weightEntryFeature.latestWeightEntry?.note == "Morning")
         #expect(viewModel.draft.value == "72.5")
         #expect(viewModel.errorMessage == nil)
         #expect(!viewModel.isSaving)
         #expect(viewModel.submittedResult != nil)
     }
 
+    @Test func successfulCheckInUsesTheAppModelsTipDeckButFailedSaveDoesNotConsumeIt() async {
+        let app = TestAppModelFactory.make()
+        let viewModel = TodayViewModel(
+            weightEntryFeature: app.weightEntryFeature,
+            dailyTipsFeature: app.dailyTipsFeature
+        )
+        viewModel.draft.value = "72.5"
+        #expect(await viewModel.save())
+        #expect(app.dailyTipsFeature.remainingCount == 99)
+        #expect(app.dailyTipsFeature.remainingPepTalkCount == 99)
+        let firstResult = viewModel.submittedResult
+        viewModel.draft.value = "invalid"
+        #expect(!(await viewModel.save()))
+        #expect(app.dailyTipsFeature.remainingCount == 99)
+        #expect(viewModel.submittedResult == firstResult)
+        viewModel.draft.value = "72.4"
+        #expect(await viewModel.save())
+        #expect(app.dailyTipsFeature.remainingCount == 98)
+        #expect(viewModel.submittedResult?.tip != firstResult?.tip)
+    }
+
     @Test func beginningAnotherCheckInCreatesFreshDraft() async {
-        let viewModel = TodayViewModel(today: TestAppModelFactory.make().weightEntries)
+        let app = TestAppModelFactory.make()
+        let viewModel = TodayViewModel(weightEntryFeature: app.weightEntryFeature, dailyTipsFeature: app.dailyTipsFeature)
         viewModel.draft.value = "72.5"
 
         #expect(await viewModel.save())
@@ -91,7 +113,8 @@ struct TodayViewModelTests {
     }
 
     @Test func invalidWeightRemainsInDraftAndShowsMessage() async {
-        let viewModel = TodayViewModel(today: TestAppModelFactory.make().weightEntries)
+        let app = TestAppModelFactory.make()
+        let viewModel = TodayViewModel(weightEntryFeature: app.weightEntryFeature, dailyTipsFeature: app.dailyTipsFeature)
         viewModel.draft.value = "invalid"
 
         let didSave = await viewModel.save()
@@ -107,7 +130,7 @@ struct TodayViewModelTests {
         let previous = WeightEntry(date: now.addingTimeInterval(-86_400), kilograms: 69.7, note: "Yesterday")
         let app = TestAppModelFactory.make(repository: InMemoryWeightRepository(
             store: .init(entries: [previous], goalKilograms: nil)), currentDate: { now })
-        let viewModel = TodayViewModel(today: app.weightEntries)
+        let viewModel = TodayViewModel(weightEntryFeature: app.weightEntryFeature, dailyTipsFeature: app.dailyTipsFeature)
         await viewModel.refresh()
         viewModel.prepareWeightInput()
         #expect(viewModel.draft.value == "69.7")
@@ -116,12 +139,12 @@ struct TodayViewModelTests {
         viewModel.draft.value = "69.6"
         viewModel.prepareWeightInput()
         #expect(viewModel.draft.value == "69.6")
-        #expect(app.weightEntries.entries.count == 1)
+        #expect(app.weightEntryFeature.entries.count == 1)
     }
 
     @Test func changingUnitsConvertsDraftRatherThanRelabelingItsNumber() async {
         let app = TestAppModelFactory.make()
-        let viewModel = TodayViewModel(today: app.weightEntries)
+        let viewModel = TodayViewModel(weightEntryFeature: app.weightEntryFeature, dailyTipsFeature: app.dailyTipsFeature)
         viewModel.draft.value = "45.359237"
         app.settingsFeature.setWeightUnit(.pounds)
         viewModel.updateInputUnit()
@@ -130,7 +153,8 @@ struct TodayViewModelTests {
 
     @Test func persistenceFailureKeepsEnteredWeightForRetry() async {
         let repository = InMemoryWeightRepository(saveError: .saveFailed)
-        let viewModel = TodayViewModel(today: TestAppModelFactory.make(repository: repository).weightEntries)
+        let app = TestAppModelFactory.make(repository: repository)
+        let viewModel = TodayViewModel(weightEntryFeature: app.weightEntryFeature, dailyTipsFeature: app.dailyTipsFeature)
         viewModel.draft.value = "75"
 
         let didSave = await viewModel.save()

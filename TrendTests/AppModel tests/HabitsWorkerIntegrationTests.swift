@@ -18,7 +18,7 @@ struct HabitsWorkerIntegrationTests {
 
     private func checkSharedLoad(failing: Bool) async {
         let dataStore = SuspendedHabitDataStore()
-        let manager = HabitsManager(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
+        let manager = HabitsFeature(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
         await dataStore.pauseNextLoad()
         var started = 0
         var finished = 0
@@ -53,7 +53,7 @@ struct HabitsWorkerIntegrationTests {
     @Test func overlappingRecordingsPreserveBothValues() async throws {
         let dataStore = SuspendedHabitDataStore()
         let date = Date(timeIntervalSince1970: 1_788_480_000)
-        let manager = HabitsManager(storage: dataStore, currentDate: { date })
+        let manager = HabitsFeature(storage: dataStore, currentDate: { date })
         try await manager.enableSelectedHabits([Habit(type: .coffee).id])
         await dataStore.pauseNextSave()
         let first = Task { try await manager.recordCoffee() }
@@ -75,7 +75,7 @@ struct HabitsWorkerIntegrationTests {
 
     @Test func loadingAfterARecordingKeepsTheSavedData() async throws {
         let dataStore = SuspendedHabitDataStore()
-        let manager = HabitsManager(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
+        let manager = HabitsFeature(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
         try await manager.enableSelectedHabits([Habit(type: .water).id])
         await dataStore.pauseNextSave()
         let recording = Task { try await manager.recordGlassOfWater() }
@@ -91,7 +91,7 @@ struct HabitsWorkerIntegrationTests {
     @Test func failedSavePreservesPublishedValuesAndAllowsTheNextOperation() async throws {
         let dataStore = SuspendedHabitDataStore()
         let date = Date(timeIntervalSince1970: 1_788_480_000)
-        let manager = HabitsManager(storage: dataStore, currentDate: { date })
+        let manager = HabitsFeature(storage: dataStore, currentDate: { date })
         try await manager.enableSelectedHabits([Habit(type: .coffee).id])
         try await manager.recordCoffee()
         await dataStore.pauseNextSave()
@@ -110,7 +110,7 @@ struct HabitsWorkerIntegrationTests {
 
     @Test func cancelledQueuedRecordingDoesNotWrite() async throws {
         let dataStore = SuspendedHabitDataStore()
-        let manager = HabitsManager(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
+        let manager = HabitsFeature(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
         try await manager.enableSelectedHabits([Habit(type: .coffee).id])
         await dataStore.pauseNextSave()
         let first = Task { try await manager.recordCoffee() }
@@ -129,7 +129,7 @@ struct HabitsWorkerIntegrationTests {
     @Test func changingDayRecalculatesSummariesWithoutLoadingStorage() async throws {
         let dataStore = SuspendedHabitDataStore()
         var date = Date(timeIntervalSince1970: 1_788_480_000)
-        let manager = HabitsManager(storage: dataStore, currentDate: { date })
+        let manager = HabitsFeature(storage: dataStore, currentDate: { date })
         try await manager.enableSelectedHabits([Habit(type: .coffee).id])
         try await manager.recordCoffee()
         let loadsBeforeDayChange = await dataStore.loadCount
@@ -145,7 +145,7 @@ struct HabitsWorkerIntegrationTests {
         let data = HabitData(enabledHabits: [Habit(type: .coffee)], entries: [
             HabitEntry(id: UUID(), habitType: .coffee, date: date, value: 3)
         ])
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(data: data), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(data: data), currentDate: { date })
         await manager.load()
         #expect(manager.loadState == .ready)
         #expect(manager.todaysEntry(for: Habit(type: .coffee).id)?.value == 3)
@@ -155,7 +155,7 @@ struct HabitsWorkerIntegrationTests {
 
     @Test func successfulSaveStillPublishesWhenCancellationArrivesDuringPersistence() async throws {
         let dataStore = SuspendedHabitDataStore()
-        let manager = HabitsManager(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
+        let manager = HabitsFeature(storage: dataStore, currentDate: TestAppModelFactory.currentDate)
         try await manager.enableSelectedHabits([Habit(type: .coffee).id])
         await dataStore.pauseNextSave()
         let recording = Task { try await manager.recordCoffee() }
@@ -170,10 +170,10 @@ struct HabitsWorkerIntegrationTests {
 
     @Test func swiftUIObservationTracksSharedFeatureState() async throws {
         let date = Date(timeIntervalSince1970: 1_788_480_000)
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
         try await manager.enableSelectedHabits([Habit(type: .coffee).id])
         let viewModel = DailyHabitsViewModel(habitsFeature: manager,
-            purchaseFeature: PurchaseManager(client: InMemoryPurchaseClient()))
+            purchaseFeature: PurchaseFeature(client: InMemoryPurchaseClient()))
         let habit = Habit(type: .coffee)
         let changed = OSAllocatedUnfairLock(initialState: false)
         withObservationTracking {

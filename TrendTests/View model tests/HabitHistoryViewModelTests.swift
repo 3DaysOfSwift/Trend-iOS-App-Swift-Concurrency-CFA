@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct HabitHistoryViewModelTests {
     @Test func formatsNumericHistoryWithItsUnit() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
         try await manager.enableSelectedHabits([Habit(type: .water).id])
         for _ in 0..<6 { try await manager.recordGlassOfWater(on: .now) }
         let viewModel = HabitHistoryViewModel(habitsFeature: manager)
@@ -16,7 +16,7 @@ struct HabitHistoryViewModelTests {
     }
 
     @Test func resolvesDeselectedHabitFromItsType() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: TestAppModelFactory.currentDate)
         try await manager.enableSelectedHabits([Habit(type: .coffee).id])
         try await manager.recordCoffee(on: .now)
         try await manager.enableSelectedHabits([])

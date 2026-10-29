@@ -6,18 +6,18 @@ import Observation
 @MainActor
 @Observable
 final class ProgressViewModel {
-    private let progress: ProgressManager
+    private let progressFeature: ProgressFeature
 
-    init(progress: ProgressManager = AppModel.shared.progressFeature) {
-        self.progress = progress
+    init(progressFeature: ProgressFeature = AppModel.shared.progressFeature) {
+        self.progressFeature = progressFeature
     }
 
-    var snapshot: WeightHistoryData { progress.progressSnapshot }
-    var goalKilograms: Double? { progress.goalWeightKilograms }
-    var unit: WeightUnit { progress.selectedWeightUnit }
-    var isLoading: Bool { progress.isPreparingProgress }
+    var snapshot: WeightHistoryData { progressFeature.progressSnapshot }
+    var goalKilograms: Double? { progressFeature.goalWeightKilograms }
+    var unit: WeightUnit { progressFeature.selectedWeightUnit }
+    var isLoading: Bool { progressFeature.isPreparingProgress }
     var range: ProgressRange {
-        get { progress.selectedProgressRange }
-        set { progress.selectProgressRange(newValue) }
+        get { progressFeature.selectedProgressRange }
+        set { progressFeature.selectProgressRange(newValue) }
     }
 }

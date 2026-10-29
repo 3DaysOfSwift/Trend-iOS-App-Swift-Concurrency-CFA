@@ -5,7 +5,7 @@ import Observation
 
 @MainActor @Observable
 final class RunEntryViewModel {
-    private let feature: HabitsManager
+    private let feature: HabitsFeature
     var distance = 5.0
     var unit = RunningDistanceUnit.kilometres
     var errorMessage: String?
@@ -13,7 +13,7 @@ final class RunEntryViewModel {
     private(set) var didSave = false
     let habit = Habit(type: .runningDistance)
 
-    init(feature: HabitsManager = AppModel.shared.habitsFeature) { self.feature = feature }
+    init(feature: HabitsFeature = AppModel.shared.habitsFeature) { self.feature = feature }
 
     func save() async {
         guard !isSaving else { return }

@@ -6,8 +6,8 @@ import Observation
 @MainActor
 @Observable
 final class TodayHabitsViewModel {
-    private let habitsFeature: HabitsManager
-    private let purchaseFeature: PurchaseManager
+    private let habitsFeature: HabitsFeature
+    private let purchaseFeature: PurchaseFeature
 
     var drafts: [String: Double] = [:]
     var distanceUnit = RunningDistanceUnit.kilometres
@@ -15,15 +15,15 @@ final class TodayHabitsViewModel {
     private(set) var feedback = 0
     var errorMessage: String?
 
-    init(habitsFeature: HabitsManager = AppModel.shared.habitsFeature,
-         purchaseFeature: PurchaseManager = AppModel.shared.purchaseFeature) {
+    init(habitsFeature: HabitsFeature = AppModel.shared.habitsFeature,
+         purchaseFeature: PurchaseFeature = AppModel.shared.purchaseFeature) {
         self.habitsFeature = habitsFeature
         self.purchaseFeature = purchaseFeature
     }
 
     var isUnlocked: Bool { purchaseFeature.hasUnlockedHabits }
     var habits: [Habit] { habitsFeature.activeHabits }
-    var loadState: HabitsManager.HabitLoadState { habitsFeature.loadState }
+    var loadState: HabitsFeature.HabitLoadState { habitsFeature.loadState }
     var moods: [MorningMood] { MorningMood.allCases }
 
     func load() async {

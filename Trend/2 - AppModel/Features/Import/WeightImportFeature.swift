@@ -1,9 +1,11 @@
 // © www.3DaysOfSwiftConcurrency.com. All rights reserved.
 
 import Foundation
+import Observation
 
 @MainActor
-final class WeightImportManager {
+@Observable
+final class WeightImportFeature {
     private let files: WeightImportFileReader
     private let weightLog: WeightLogManager
     private let refresh: @MainActor () async -> Void

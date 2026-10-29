@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 final class InMemoryPurchaseClient: PurchaseClient {
     var product = PurchaseProduct(
-        id: PurchaseManager.habitsProductID,
+        id: PurchaseFeature.habitsProductID,
         displayName: "Trend Habits",
         description: "Track the daily signals that matter to you.",
         displayPrice: "£4.99"

@@ -6,21 +6,21 @@ import Observation
 @MainActor
 @Observable
 final class HabitsViewModel {
-    private let habitsFeature: HabitsManager
-    private let purchaseFeature: PurchaseManager
+    private let habitsFeature: HabitsFeature
+    private let purchaseFeature: PurchaseFeature
 
     var isChoosingHabits = false
 
     init(
-        habitsFeature: HabitsManager = AppModel.shared.habitsFeature,
-        purchaseFeature: PurchaseManager = AppModel.shared.purchaseFeature
+        habitsFeature: HabitsFeature = AppModel.shared.habitsFeature,
+        purchaseFeature: PurchaseFeature = AppModel.shared.purchaseFeature
     ) {
         self.habitsFeature = habitsFeature
         self.purchaseFeature = purchaseFeature
     }
 
     var habits: [Habit] { habitsFeature.activeHabits }
-    var habitLoadState: HabitsManager.HabitLoadState { habitsFeature.loadState }
+    var habitLoadState: HabitsFeature.HabitLoadState { habitsFeature.loadState }
     var hasUnlockedHabits: Bool { purchaseFeature.hasUnlockedHabits }
     var isLoadingPurchase: Bool { purchaseFeature.isLoading }
     var isPurchasing: Bool { purchaseFeature.isPurchasing }

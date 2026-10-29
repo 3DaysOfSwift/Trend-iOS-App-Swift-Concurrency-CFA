@@ -1,11 +1,13 @@
 // © www.3DaysOfSwiftConcurrency.com. All rights reserved.
 
 import Foundation
+import Observation
 
 /// Presents the progress feature as a complete capability without exposing the
 /// managers that calculate it or the stores that supply its inputs.
 @MainActor
-final class ProgressManager {
+@Observable
+final class ProgressFeature {
     private let progress: ProgressTracker
     private let weightLog: WeightLogManager
     private let settings: UserSettingsStore

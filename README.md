@@ -20,16 +20,16 @@ Open Source CFA Skill Repository
 
 ## The architectural sentence
 
-`View → ViewModel → Feature API → Feature Manager → Repository`
+`View → ViewModel → Feature → Service / Repository`
 
 That sentence is also the folder structure. Open `Trend` in Xcode and the first distinction is between `1 - View` and `2 - AppModel`:
 
 - **1 - View** contains SwiftUI and presentation state. Every screen has a folder containing its View and tightly coupled ViewModel.
-- **2 - AppModel** contains the composition root and the layers beneath it: feature APIs, feature managers, domain types, repository contracts, and storage implementations.
+- **2 - AppModel** contains the composition root and the layers beneath it: concrete Features, domain types, repository contracts, and storage implementations.
 - **3 - App Resources** contains assets, privacy metadata, and entitlements.
 - **4 - Swift Extensions** contains reusable extensions of Swift and Foundation types. SwiftUI-specific extensions remain in `1 - View`.
 
-ViewModels and UI-readable feature managers use Apple's Observation framework. Views own their `@Observable` ViewModel with `@State` and create an `@Bindable` projection only when a control requires a binding. The project therefore contains no Combine publisher forwarding or `@Published` state.
+ViewModels and Features use Apple's Observation framework. Views own their `@Observable` ViewModel with `@State` and create an `@Bindable` projection only when a control requires a binding. The project therefore contains no Combine publisher forwarding or `@Published` state.
 
 Read the complete [`AppModel iOS Application Template`](Documentation/APPMODEL_IOS_APPLICATION_TEMPLATE.md) for the reusable rules and [`ARCHITECTURE.md`](Documentation/ARCHITECTURE.md) for Trend's concrete implementation. The [Swift Concurrency Migration skill](Skills/swift-concurrency-migration/SKILL.md) applies the same rules when an AI coding agent creates, changes, or reviews an iOS application.
 

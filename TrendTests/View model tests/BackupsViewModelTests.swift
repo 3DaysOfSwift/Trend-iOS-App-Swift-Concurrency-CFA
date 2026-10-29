@@ -18,7 +18,7 @@ struct BackupsViewModelTests {
         let file = root.appending(path: "restore.json")
         try JSONEncoder().encode(snapshot).write(to: file)
         var reloads = 0
-        let manager = BackupManager(storage: storage,
+        let manager = BackupFeature(storage: storage,
             files: RecoveryBackupFiles(folder: root.appending(path: "Backups"), access: PreviewFileAccess(), cloudFolder: { nil }),
             settings: UserSettingsStore(cloudSync: PreviewCloudStatus(), defaults: UserDefaults(suiteName: UUID().uuidString)!)) {
                 reloads += 1

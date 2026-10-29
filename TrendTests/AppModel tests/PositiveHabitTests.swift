@@ -9,7 +9,7 @@ struct PositiveHabitTests {
     private let date = Date(timeIntervalSince1970: 1_800_000_000)
 
     @Test func catalogOffersPositiveCheckInsWithoutDeletingRetiredHistory() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
         try await manager.enableSelectedHabits(["coffee", "alcohol", "water"])
         try await manager.recordCoffee()
         #expect(!manager.availableHabits.contains { $0.type == .coffee || $0.type == .alcohol })
@@ -18,7 +18,7 @@ struct PositiveHabitTests {
     }
 
     @Test func noAndMissingAreDifferentAndDailyAnswersCanBeCorrected() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
         try await manager.enableSelectedHabits(["gymAttendance", "sauna"])
         #expect(manager.todaysEntry(for: "gymAttendance") == nil)
         try await manager.recordDailyValue(0, for: "gymAttendance")
@@ -31,7 +31,7 @@ struct PositiveHabitTests {
     }
 
     @Test func morningMoodIsOneReplaceableAnswerPerDay() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
         try await manager.enableSelectedHabits(["morningMood"])
         try await manager.recordDailyValue(2, for: "morningMood")
         try await manager.recordDailyValue(5, for: "morningMood")
@@ -43,7 +43,7 @@ struct PositiveHabitTests {
 
     @Test func multipleCustomHabitsKeepSeparateDailyRecordsAndNames() async throws {
         let store = InMemoryHabitDataStore()
-        let manager = HabitsManager(storage: store, currentDate: { date })
+        let manager = HabitsFeature(storage: store, currentDate: { date })
         try await manager.enableSelectedHabits([], customNames: ["Walk outside", "Stretch"])
         let first = manager.activeHabits[0]
         let second = manager.activeHabits[1]
@@ -55,7 +55,7 @@ struct PositiveHabitTests {
         try await manager.enableSelectedHabits([second.id])
         let data = try await store.load()
         let decoded = try JSONDecoder().decode(HabitData.self, from: JSONEncoder().encode(data))
-        let restored = HabitsManager(storage: InMemoryHabitDataStore(data: decoded), currentDate: { date })
+        let restored = HabitsFeature(storage: InMemoryHabitDataStore(data: decoded), currentDate: { date })
         await restored.load()
         #expect(restored.activeHabits.map(\.id) == [second.id])
         let entry = try #require(restored.todaysEntry(for: first.id))
@@ -64,14 +64,14 @@ struct PositiveHabitTests {
     }
 
     @Test func invalidCustomNameDoesNotChangeTheSelection() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
         try await manager.enableSelectedHabits(["water"])
         await #expect(throws: (any Error).self) { try await manager.enableSelectedHabits([], customNames: ["   "]) }
         #expect(manager.enabledHabits.map(\.id) == ["water"])
     }
 
     @Test func overlappingQuickEntriesAccumulateWithoutLostUpdates() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
         try await manager.enableSelectedHabits(["water", "exerciseSets"])
         try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<8 {
@@ -85,7 +85,7 @@ struct PositiveHabitTests {
     }
 
     @Test func quickRunsConvertMilesAndAccumulate() async throws {
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { date })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { date })
         try await manager.enableSelectedHabits(["runningDistance"])
         try await manager.recordDailyValue(1, for: "runningDistance", distanceUnit: .miles)
         try await manager.recordDailyValue(2, for: "runningDistance")
@@ -95,7 +95,7 @@ struct PositiveHabitTests {
 
     @Test func tomorrowBeginsWithoutAnAnswer() async throws {
         var now = date
-        let manager = HabitsManager(storage: InMemoryHabitDataStore(), currentDate: { now })
+        let manager = HabitsFeature(storage: InMemoryHabitDataStore(), currentDate: { now })
         try await manager.enableSelectedHabits(["morningMood"])
         try await manager.recordDailyValue(3, for: "morningMood")
         now = Calendar.current.date(byAdding: .day, value: 1, to: now)!
@@ -121,7 +121,7 @@ struct PositiveHabitTests {
     }
 
     @Test func failedSaveKeepsPreviouslyPublishedState() async throws {
-        let manager = HabitsManager(storage: RejectingHabitSave(), currentDate: { date })
+        let manager = HabitsFeature(storage: RejectingHabitSave(), currentDate: { date })
         await manager.load()
         await #expect(throws: (any Error).self) { try await manager.recordDailyValue(1, for: "water") }
         #expect(manager.entries.isEmpty)

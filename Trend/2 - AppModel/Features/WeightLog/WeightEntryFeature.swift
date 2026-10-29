@@ -1,11 +1,13 @@
 // © www.3DaysOfSwiftConcurrency.com. All rights reserved.
 
 import Foundation
+import Observation
 
 /// Owns every workflow concerned with creating, editing, listing, and deleting
 /// weight entries. Multiple interfaces can reuse these rules without copying them.
 @MainActor
-final class WeightEntryManager {
+@Observable
+final class WeightEntryFeature {
     enum EntryDateError: LocalizedError, Equatable {
         case futureDate
 
@@ -18,7 +20,6 @@ final class WeightEntryManager {
     private let progress: ProgressTracker
     private let settings: UserSettingsStore
     private let dailyTrend: DailyTrendManager
-    private let dailyTips: DailyTipManager
     private let dailyStreak: DailyStreakManager
 
     /// A function, rather than a stored Date, keeps production time moving while
@@ -30,7 +31,6 @@ final class WeightEntryManager {
         progress: ProgressTracker,
         settings: UserSettingsStore,
         dailyTrend: DailyTrendManager,
-        dailyTips: DailyTipManager,
         dailyStreak: DailyStreakManager,
         currentDate: @escaping @MainActor () -> Date
     ) {
@@ -38,7 +38,6 @@ final class WeightEntryManager {
         self.progress = progress
         self.settings = settings
         self.dailyTrend = dailyTrend
-        self.dailyTips = dailyTips
         self.dailyStreak = dailyStreak
         self.currentDate = currentDate
     }
@@ -98,7 +97,7 @@ final class WeightEntryManager {
         await refreshDerivedFeatures()
     }
 
-    func checkIn(_ draft: WeightEntryDraft) async throws -> DailyCheckInResult {
+    func checkIn(_ draft: WeightEntryDraft) async throws -> DailyTrendAssessment {
         try validateEntryDate(draft.date)
         let existingIDs = Set(weightLog.entries.map(\.id))
         try await weightLog.add(draft, unit: settings.unit)
@@ -111,15 +110,7 @@ final class WeightEntryManager {
             entries: weightLog.entries,
             newestEntryID: newEntry.id
         )
-        return DailyCheckInResult(
-            assessment: assessment,
-            tip: dailyTips.nextTip(),
-            pepTalk: dailyTips.nextPepTalk(),
-            poisonPoint: dailyTips.nextPoisonPoint(),
-            evolutionPoint: dailyTips.nextEvolutionPoint(),
-            fastingPoint: dailyTips.currentFastingSuggestion,
-            whatNext: dailyTips.whatNext()
-        )
+        return assessment
     }
 
     func delete(_ entry: WeightEntry) async throws {

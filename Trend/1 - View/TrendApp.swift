@@ -35,7 +35,6 @@ struct TrendApp: App {
 @MainActor
 final class TrendAppDelegate: NSObject, UIApplicationDelegate {
     
-    let appModel = AppModel.shared
     
     #if DEBUG
     var areUninttestsrunning: Bool {
@@ -59,7 +58,7 @@ final class TrendAppDelegate: NSObject, UIApplicationDelegate {
         // Do not make this check in a production build. Runs with our unit tests.
         guard !areUninttestsrunning else { return }
         #endif
-        appModel.applicationDidBecomeActive()
+        AppModel.shared.applicationDidBecomeActive()
     }
 
     func applicationSignificantTimeChange(_ application: UIApplication) {
@@ -67,6 +66,6 @@ final class TrendAppDelegate: NSObject, UIApplicationDelegate {
         // Do not make this check in a production build. Runs with our unit tests.
         guard !areUninttestsrunning else { return }
         #endif
-        appModel.applicationSignificantTimeChange()
+        AppModel.shared.applicationSignificantTimeChange()
     }
 }

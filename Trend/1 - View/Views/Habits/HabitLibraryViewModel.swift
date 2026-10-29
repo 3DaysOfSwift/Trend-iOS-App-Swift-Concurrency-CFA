@@ -6,7 +6,7 @@ import Observation
 @MainActor
 @Observable
 final class HabitLibraryViewModel {
-    private let habitsFeature: HabitsManager
+    private let habitsFeature: HabitsFeature
 
     var selection: Set<String>
     var errorMessage: String?
@@ -14,7 +14,7 @@ final class HabitLibraryViewModel {
     var customName = ""
     var customNames: [String] = []
 
-    init(habitsFeature: HabitsManager = AppModel.shared.habitsFeature) {
+    init(habitsFeature: HabitsFeature = AppModel.shared.habitsFeature) {
         self.habitsFeature = habitsFeature
         selection = Set(habitsFeature.enabledHabits.map(\.id))
     }

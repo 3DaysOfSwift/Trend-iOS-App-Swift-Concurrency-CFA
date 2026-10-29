@@ -72,7 +72,7 @@ final class WeightLogManager {
         try await commit(candidate)
     }
 
-    /// Stores goals in canonical kilograms. SettingsManager converts a value
+    /// Stores goals in canonical kilograms. SettingsFeature converts a value
     /// entered in pounds before it reaches this persistence boundary.
     func setGoal(kilograms: Double?) async throws {
         await waitForPreviousOperation()

@@ -1,10 +1,12 @@
 // © www.3DaysOfSwiftConcurrency.com. All rights reserved.
 
 import Foundation
+import Observation
 
 /// Owns settings, goal, backup, and whole-account data workflows.
 @MainActor
-final class SettingsManager {
+@Observable
+final class SettingsFeature {
     private let settings: UserSettingsStore
     private let weightLog: WeightLogManager
     private let progress: ProgressTracker

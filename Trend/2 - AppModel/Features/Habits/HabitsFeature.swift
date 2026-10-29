@@ -5,7 +5,7 @@ import Observation
 
 @MainActor
 @Observable
-final class HabitsManager {
+final class HabitsFeature {
     private let worker: HabitsWorker
     private let calendar: Calendar
     private let currentDate: @MainActor () -> Date
@@ -153,7 +153,7 @@ final class HabitsManager {
 
 // MARK: - Habit updates
 
-extension HabitsManager {
+extension HabitsFeature {
     @discardableResult
     func enableSelectedHabits(_ habitIDs: Set<String>, customNames: [String] = []) async throws -> [Habit] {
         await load()

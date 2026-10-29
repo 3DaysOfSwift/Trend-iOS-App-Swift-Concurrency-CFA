@@ -5,14 +5,14 @@ import Observation
 
 @MainActor @Observable
 final class BackupsViewModel {
-    private let backups: BackupManager
+    private let backups: BackupFeature
     var preview: RecoverySnapshot?
     var showsRestoreConfirmation = false
     var choosesFile = false
     var message: String?
     private(set) var isBusy = false
 
-    init(backups: BackupManager = AppModel.shared.backupFeature) { self.backups = backups }
+    init(backups: BackupFeature = AppModel.shared.backupFeature) { self.backups = backups }
     var status: String { backups.status }
     var syncStatus: String { backups.syncStatus }
 

@@ -56,20 +56,20 @@ struct AppModelTests {
             value: "75"
         )
 
-        await #expect(throws: WeightEntryManager.EntryDateError.futureDate) {
-            try await appModel.weightEntries.save(draft, editing: nil)
+        await #expect(throws: WeightEntryFeature.EntryDateError.futureDate) {
+            try await appModel.weightEntryFeature.save(draft, editing: nil)
         }
-        #expect(appModel.weightEntries.entries.isEmpty)
+        #expect(appModel.weightEntryFeature.entries.isEmpty)
     }
 
     @Test func savingEntryRefreshesProgress() async throws {
         let repository = InMemoryWeightRepository()
         let appModel = TestAppModelFactory.make(repository: repository)
 
-        await appModel.weightEntries.refresh()
-        try await appModel.weightEntries.save(WeightEntryDraft(date: TestAppModelFactory.currentDate(), value: "75"), editing: nil)
+        await appModel.weightEntryFeature.refresh()
+        try await appModel.weightEntryFeature.save(WeightEntryDraft(date: TestAppModelFactory.currentDate(), value: "75"), editing: nil)
 
-        #expect(appModel.weightEntries.entries.count == 1)
+        #expect(appModel.weightEntryFeature.entries.count == 1)
         #expect(appModel.progressFeature.progressSnapshot.points.count == 1)
     }
 }

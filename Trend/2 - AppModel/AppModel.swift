@@ -4,41 +4,41 @@ import Foundation
 
 /// The composition root for the application.
 ///
-/// AppModel chooses and connects feature managers. Application behavior lives
+/// AppModel constructs and exposes Features. Application behavior lives
 /// in those features rather than accumulating in this assembly type.
 @MainActor
 final class AppModel {
     /// The single production dependency graph used by the running app.
     static let shared = AppModel.live()
 
-    let weightEntries: WeightEntryManager
-    let progressFeature: ProgressManager
-    let settingsFeature: SettingsManager
-    let habitsFeature: HabitsManager
-    let purchaseFeature: PurchaseManager
-    let backupFeature: BackupManager
-    let importFeature: WeightImportManager
-    private let dailyTips: DailyTipManager
+    let weightEntryFeature: WeightEntryFeature
+    let progressFeature: ProgressFeature
+    let settingsFeature: SettingsFeature
+    let habitsFeature: HabitsFeature
+    let purchaseFeature: PurchaseFeature
+    let backupFeature: BackupFeature
+    let weightImportFeature: WeightImportFeature
+    let dailyTipsFeature: DailyTipsFeature
     private var hasLaunched = false
 
     init(
-        weightEntries: WeightEntryManager,
-        progressFeature: ProgressManager,
-        settingsFeature: SettingsManager,
-        habitsFeature: HabitsManager,
-        purchaseFeature: PurchaseManager,
-        dailyTips: DailyTipManager,
-        backupFeature: BackupManager,
-        importFeature: WeightImportManager
+        weightEntryFeature: WeightEntryFeature,
+        progressFeature: ProgressFeature,
+        settingsFeature: SettingsFeature,
+        habitsFeature: HabitsFeature,
+        purchaseFeature: PurchaseFeature,
+        dailyTipsFeature: DailyTipsFeature,
+        backupFeature: BackupFeature,
+        weightImportFeature: WeightImportFeature
     ) {
-        self.weightEntries = weightEntries
+        self.weightEntryFeature = weightEntryFeature
         self.progressFeature = progressFeature
         self.settingsFeature = settingsFeature
         self.habitsFeature = habitsFeature
         self.purchaseFeature = purchaseFeature
-        self.dailyTips = dailyTips
+        self.dailyTipsFeature = dailyTipsFeature
         self.backupFeature = backupFeature
-        self.importFeature = importFeature
+        self.weightImportFeature = weightImportFeature
     }
 
     /// Produces the live, non-test AppModel and assembles all production
@@ -57,51 +57,50 @@ final class AppModel {
         let progress = ProgressTracker(currentDate: currentDate)
         let settings = UserSettingsStore(cloudSync: ICloudDriveAvailability())
         let dailyTrend = DailyTrendManager()
-        let dailyTips = DailyTipManager(currentDate: currentDate)
+        let dailyTipsFeature = DailyTipsFeature(currentDate: currentDate)
         let dailyStreak = DailyStreakManager(trend: dailyTrend, currentDate: currentDate)
         let backupFiles = BackupFileManager()
         let habitDataStore = LocalHabitRepository(storage: storage)
-        let habits = HabitsManager(
+        let habitsFeature = HabitsFeature(
             storage: habitDataStore,
             currentDate: currentDate
         )
-        let purchases = PurchaseManager(client: StoreKitPurchaseClient())
+        let purchaseFeature = PurchaseFeature(client: StoreKitPurchaseClient())
 
-        let weightEntries = WeightEntryManager(
+        let weightEntryFeature = WeightEntryFeature(
             weightLog: weightLog,
             progress: progress,
             settings: settings,
             dailyTrend: dailyTrend,
-            dailyTips: dailyTips,
             dailyStreak: dailyStreak,
             currentDate: currentDate
         )
-        let progressFeature = ProgressManager(
+        let progressFeature = ProgressFeature(
             progress: progress,
             weightLog: weightLog,
             settings: settings
         )
-        let settingsFeature = SettingsManager(
+        let settingsFeature = SettingsFeature(
             settings: settings,
             weightLog: weightLog,
             progress: progress,
             dailyStreak: dailyStreak,
             backupFiles: backupFiles
         )
-        let backups = BackupManager(storage: storage,
+        let backupFeature = BackupFeature(storage: storage,
             files: RecoveryBackupFiles(folder: directory.appending(path: "Backups")), settings: settings) {
-                await weightEntries.refresh()
-                await habits.reload()
+                await weightEntryFeature.refresh()
+                await habitsFeature.reload()
             }
         return AppModel(
-            weightEntries: weightEntries,
+            weightEntryFeature: weightEntryFeature,
             progressFeature: progressFeature,
             settingsFeature: settingsFeature,
-            habitsFeature: habits,
-            purchaseFeature: purchases,
-            dailyTips: dailyTips,
-            backupFeature: backups,
-            importFeature: WeightImportManager(weightLog: weightLog) { await weightEntries.refresh() }
+            habitsFeature: habitsFeature,
+            purchaseFeature: purchaseFeature,
+            dailyTipsFeature: dailyTipsFeature,
+            backupFeature: backupFeature,
+            weightImportFeature: WeightImportFeature(weightLog: weightLog) { await weightEntryFeature.refresh() }
         )
     }
 
@@ -111,20 +110,20 @@ final class AppModel {
         hasLaunched = true
 
         purchaseFeature.observeTransactionUpdates()
-        dailyTips.refresh()
+        dailyTipsFeature.refresh()
         backupFeature.observeLocalChanges()
         backupFeature.observeCloudChanges()
         Task { await backupFeature.triggerDataBackupIfNeeded() }
         
         Task { await purchaseFeature.refreshStoreState() }
         Task { await settingsFeature.refreshCloudStatus() }
-        Task { await weightEntries.refresh() }
+        Task { await weightEntryFeature.refresh() }
         Task { await habitsFeature.load() }
     }
     
     func applicationDidBecomeActive() {
         Task {
-            await weightEntries.refresh()
+            await weightEntryFeature.refresh()
             await habitsFeature.reload()
             await backupFeature.triggerDataBackupIfNeeded()
         }

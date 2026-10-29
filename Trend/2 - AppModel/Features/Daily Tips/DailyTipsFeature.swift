@@ -1,6 +1,7 @@
 // © www.3DaysOfSwiftConcurrency.com. All rights reserved.
 
 import Foundation
+import Observation
 
 struct WellnessTip: Identifiable, Sendable, Equatable {
     let id: Int
@@ -22,7 +23,8 @@ struct WhatNextGuidance: Sendable, Equatable {
 }
 
 @MainActor
-final class DailyTipManager {
+@Observable
+final class DailyTipsFeature {
     private enum Key {
         static let remainingTipIDs = "remainingWellnessTipIDs"
         static let remainingPepTalkIDs = "remainingPepTalkIDs"

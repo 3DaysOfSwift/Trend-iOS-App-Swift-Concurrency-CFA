@@ -5,7 +5,7 @@ import Testing
 @testable import Trend
 
 @MainActor
-struct DailyTipManagerTests {
+struct DailyTipsFeatureTests {
     @Test func catalogContainsExactlyOneHundredTips() {
         let manager = makeManager()
         #expect(manager.catalogCount == 100)
@@ -80,11 +80,11 @@ struct DailyTipManagerTests {
         #expect(manager.whatNext(on: tuesday) == nil)
     }
 
-    private func makeManager(calendar: Calendar = .current) -> DailyTipManager {
-        DailyTipManager(defaults: makeDefaults(), calendar: calendar, currentDate: TestAppModelFactory.currentDate)
+    private func makeManager(calendar: Calendar = .current) -> DailyTipsFeature {
+        DailyTipsFeature(defaults: makeDefaults(), calendar: calendar, currentDate: TestAppModelFactory.currentDate)
     }
 
     private func makeDefaults() -> UserDefaults {
-        UserDefaults(suiteName: "DailyTipManagerTests.\(UUID().uuidString)")!
+        UserDefaults(suiteName: "DailyTipsFeatureTests.\(UUID().uuidString)")!
     }
 }

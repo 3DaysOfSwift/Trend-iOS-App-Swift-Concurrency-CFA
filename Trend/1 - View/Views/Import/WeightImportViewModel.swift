@@ -10,7 +10,7 @@ struct WeightImportSelection: Identifiable {
 
 @MainActor @Observable
 final class WeightImportViewModel {
-    private let feature: WeightImportManager
+    private let feature: WeightImportFeature
     let url: URL
     private(set) var document: WeightImportDocument?
     private(set) var isLoading = false
@@ -18,7 +18,7 @@ final class WeightImportViewModel {
     private(set) var result: WeightImportMerge?
     private(set) var errorMessage: String?
 
-    init(url: URL, feature: WeightImportManager = AppModel.shared.importFeature) {
+    init(url: URL, feature: WeightImportFeature = AppModel.shared.weightImportFeature) {
         self.url = url
         self.feature = feature
     }

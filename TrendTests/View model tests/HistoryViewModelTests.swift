@@ -10,7 +10,7 @@ struct HistoryViewModelTests {
         let entry = WeightEntry(date: .now, kilograms: 75)
         let repository = InMemoryWeightRepository(store: .init(entries: [entry], goalKilograms: nil))
         let appModel = TestAppModelFactory.make(repository: repository, unit: .pounds)
-        let viewModel = HistoryViewModel(history: appModel.weightEntries)
+        let viewModel = HistoryViewModel(history: appModel.weightEntryFeature)
 
         await viewModel.refresh()
 
@@ -22,8 +22,8 @@ struct HistoryViewModelTests {
         let entry = WeightEntry(date: .now, kilograms: 75)
         let repository = InMemoryWeightRepository(store: .init(entries: [entry], goalKilograms: nil))
         let appModel = TestAppModelFactory.make(repository: repository)
-        await appModel.weightEntries.refresh()
-        let viewModel = HistoryViewModel(history: appModel.weightEntries)
+        await appModel.weightEntryFeature.refresh()
+        let viewModel = HistoryViewModel(history: appModel.weightEntryFeature)
 
         await viewModel.delete(entry)
 
@@ -39,8 +39,8 @@ struct HistoryViewModelTests {
             saveError: .saveFailed
         )
         let appModel = TestAppModelFactory.make(repository: repository)
-        await appModel.weightEntries.refresh()
-        let viewModel = HistoryViewModel(history: appModel.weightEntries)
+        await appModel.weightEntryFeature.refresh()
+        let viewModel = HistoryViewModel(history: appModel.weightEntryFeature)
 
         await viewModel.delete(entry)
 
@@ -50,7 +50,7 @@ struct HistoryViewModelTests {
 
     @Test func refreshExposesLoadFailure() async {
         let repository = InMemoryWeightRepository(loadError: .loadFailed)
-        let viewModel = HistoryViewModel(history: TestAppModelFactory.make(repository: repository).weightEntries)
+        let viewModel = HistoryViewModel(history: TestAppModelFactory.make(repository: repository).weightEntryFeature)
 
         await viewModel.refresh()
 

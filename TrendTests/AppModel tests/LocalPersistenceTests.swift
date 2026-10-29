@@ -62,7 +62,7 @@ struct LocalPersistenceTests {
         let storage = LocalDataStore(directory: folder)
         let weight = WeightLogManager(repository: LocalWeightRepository(storage: storage))
         try await weight.add(WeightEntryDraft(date: date, value: "69.7"), unit: .kilograms)
-        let habits = HabitsManager(storage: LocalHabitRepository(storage: storage), currentDate: { date })
+        let habits = HabitsFeature(storage: LocalHabitRepository(storage: storage), currentDate: { date })
         try await habits.enableSelectedHabits(["morningMood", "water"])
         try await habits.recordDailyValue(4, for: "morningMood")
         await storage.close()

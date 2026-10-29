@@ -106,7 +106,7 @@ struct WeightImportTests {
         defer { try? FileManager.default.removeItem(at: url) }
         let repository = InMemoryWeightRepository()
         let manager = WeightLogManager(repository: repository)
-        let feature = WeightImportManager(weightLog: manager, refresh: {})
+        let feature = WeightImportFeature(weightLog: manager, refresh: {})
         let viewModel = WeightImportViewModel(url: url, feature: feature)
         await viewModel.load()
         #expect(viewModel.canImport)

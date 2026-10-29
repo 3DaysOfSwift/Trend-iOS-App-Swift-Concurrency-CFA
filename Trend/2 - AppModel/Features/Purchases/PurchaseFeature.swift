@@ -5,7 +5,7 @@ import Foundation
 
 @MainActor
 @Observable
-final class PurchaseManager {
+final class PurchaseFeature {
     static let habitsProductID = "com.mattharding.Trend.habits"
 
     private let client: any PurchaseClient

@@ -4,12 +4,12 @@ import Observation
 
 @MainActor @Observable
 final class TodayActivityHabitsViewModel {
-    private let feature: HabitsManager
+    private let feature: HabitsFeature
     var showsRunEntry = false
     var errorMessage: String?
     private(set) var savingIDs: Set<String> = []
 
-    init(feature: HabitsManager = AppModel.shared.habitsFeature) { self.feature = feature }
+    init(feature: HabitsFeature = AppModel.shared.habitsFeature) { self.feature = feature }
 
     var habits: [Habit] { feature.activeHabits.filter { $0.isDailyAnswer || $0.type == .runningDistance } }
     func isSelected(_ habit: Habit) -> Bool { (feature.todaysEntry(for: habit.id)?.value ?? 0) > 0 }

@@ -5,7 +5,7 @@ import Observation
 import CoreData
 
 @MainActor @Observable
-final class BackupManager {
+final class BackupFeature {
     private let storage: LocalDataStore
     private let files: RecoveryBackupFiles
     private let settings: UserSettingsStore
