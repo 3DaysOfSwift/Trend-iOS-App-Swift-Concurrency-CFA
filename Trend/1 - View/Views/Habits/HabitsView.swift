@@ -5,7 +5,6 @@ import SwiftUI
 struct HabitsView: View {
     @State private var viewModel = HabitsViewModel()
     @Environment(ThemeManager.self) private var themeManager
-    @State private var showsPurchaseJourney = false
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -40,12 +39,11 @@ struct HabitsView: View {
         } message: {
             Text(viewModel.purchaseMessage ?? "")
         }
-        .fullScreenCover(isPresented: $showsPurchaseJourney) {
+        .fullScreenCover(isPresented: $viewModel.showsPurchaseJourney) {
             PurchaseJourneyView()
         }
         .onChange(of: viewModel.newlyCompletedPurchaseID) { _, completionID in
-            guard completionID != nil, !viewModel.isPurchasing else { return }
-            showsPurchaseJourney = true
+            viewModel.purchaseCompleted(completionID)
         }
     }
 
@@ -77,7 +75,7 @@ struct HabitsView: View {
                 .background(themeManager.palette.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
                 Button {
-                    beginPurchase()
+                    viewModel.purchaseHabits()
                 } label: {
                     if viewModel.isPurchasing {
                         SwiftUI.ProgressView().frame(maxWidth: .infinity)
@@ -92,7 +90,7 @@ struct HabitsView: View {
                 .disabled(viewModel.isPurchasing)
 
                 Button("Restore Purchases") {
-                    Task { await viewModel.restorePurchases() }
+                    viewModel.restorePurchases()
                 }
                 .font(.footnote.weight(.semibold))
                 .disabled(viewModel.isPurchasing)
@@ -103,15 +101,6 @@ struct HabitsView: View {
                     .multilineTextAlignment(.center)
             }
             .padding(24)
-        }
-    }
-
-    private func beginPurchase() {
-        guard !viewModel.isPurchasing else { return }
-        Task {
-            if await viewModel.purchaseHabits() {
-                showsPurchaseJourney = true
-            }
         }
     }
 
