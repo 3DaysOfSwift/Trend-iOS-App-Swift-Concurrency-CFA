@@ -14,7 +14,7 @@ struct BackupsView: View {
             }
             Section {
                 Text(viewModel.status)
-                Button("Back up now") { Task { await viewModel.backUp() } }
+                Button("Back up now") { viewModel.backUp() }
             } header: { Text("Saved on this iPhone") } footer: {
                 Text("SwiftData saves your entries locally and Apple synchronizes them through iCloud. Separately, Trend checks for a recovery backup after edits, on launch and on return. Changed data is backed up at most once every 24 hours, or immediately using Back up now. Latest, previous and weekly recovery copies are kept in iCloud Drive.")
             }
@@ -27,10 +27,10 @@ struct BackupsView: View {
         .disabled(viewModel.isBusy)
         .navigationTitle("Backups")
         .fileImporter(isPresented: $viewModel.choosesFile, allowedContentTypes: [.json]) { result in
-            Task { await viewModel.inspect(result) }
+            viewModel.inspect(result)
         }
         .alert("Replace local records?", isPresented: $viewModel.showsRestoreConfirmation) {
-            Button("Restore", role: .destructive) { Task { await viewModel.restore() } }
+            Button("Restore", role: .destructive) { viewModel.restore() }
             Button("Cancel", role: .cancel) { viewModel.preview = nil }
         } message: {
             if let backup = viewModel.preview {

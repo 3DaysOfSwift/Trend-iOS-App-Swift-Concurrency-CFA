@@ -6,6 +6,33 @@ import Testing
 
 @MainActor
 struct BackupsViewModelTests {
+    @Test func acceptedBackupFinishesAfterScreenReleaseThenReleasesItsOwner() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let suite = UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let storage = LocalDataStore(directory: root)
+        let entry = WeightEntry(date: .now, kilograms: 70)
+        try await storage.saveWeight(WeightStore(entries: [entry], goalKilograms: nil))
+        let folder = root.appending(path: "Backups")
+        let feature = BackupFeature(storage: storage,
+            files: RecoveryBackupFiles(folder: folder, cloudFolder: { nil }),
+            settings: UserSettingsStore(cloudSync: PreviewCloudStatus(), defaults: defaults), reload: {})
+        var screen: BackupsViewModel? = BackupsViewModel(backups: feature)
+        weak var owner = screen
+        let action = try #require(screen?.backUp())
+        screen = nil
+        #expect(owner != nil)
+        await action.value
+        #expect(owner == nil)
+        let saved = try JSONDecoder().decode(RecoverySnapshot.self,
+            from: Data(contentsOf: folder.appending(path: "Latest.json")))
+        #expect(saved.weight.entries == [entry])
+        #expect(feature.status.contains("Backup needs attention"))
+        await storage.close()
+    }
+
     @Test func previewRequiresConfirmationBeforeReplacingLocalRecords() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -24,11 +51,19 @@ struct BackupsViewModelTests {
                 reloads += 1
             }
         let viewModel = BackupsViewModel(backups: manager)
-        await viewModel.inspect(.success(file))
+        await viewModel.inspect(.failure(CocoaError(.fileReadNoPermission))).value
+        #expect(viewModel.message != nil)
+        #expect(!viewModel.isBusy)
+        #expect(viewModel.preview == nil)
+        await viewModel.inspect(.success(file)).value
         #expect(viewModel.showsRestoreConfirmation)
         #expect(viewModel.preview?.weight.entries.count == 1)
         #expect(try await storage.loadWeight().entries == [current])
-        await viewModel.restore()
+        let firstRestore = viewModel.restore()
+        let repeatedRestore = viewModel.restore()
+        #expect(viewModel.isBusy)
+        await firstRestore.value
+        await repeatedRestore.value
         #expect(try await storage.loadWeight().entries == [original])
         #expect(reloads == 1)
         #expect(viewModel.preview == nil)
