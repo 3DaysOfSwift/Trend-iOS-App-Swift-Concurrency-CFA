@@ -16,7 +16,9 @@ final class PurchaseFeature {
     private(set) var hasUnlockedHabits = false
     private(set) var isLoading = true
     private(set) var isPurchasing = false
-    private(set) var message: String?
+    private var storeMessage: String?
+    private var interactionMessage: String?
+    var message: String? { interactionMessage ?? storeMessage }
     private(set) var newlyCompletedPurchaseID: UUID?
     private var hasCompletedInitialEntitlementCheck = false
     private var entitlementRequestID = UUID()
@@ -63,15 +65,17 @@ final class PurchaseFeature {
             await refreshEntitlements()
         }
 
-        do { habitsProduct = try await productTask.value }
-        catch { message = error.localizedDescription }
+        do {
+            habitsProduct = try await productTask.value
+            storeMessage = nil
+        } catch { storeMessage = error.localizedDescription }
         await entitlementTask.value
         hasCompletedInitialEntitlementCheck = true
     }
 
     func purchaseHabits() async {
         guard !isPurchasing else { return }
-        message = nil
+        dismissMessage()
         isPurchasing = true
         defer { isPurchasing = false }
         do {
@@ -79,36 +83,39 @@ final class PurchaseFeature {
             case .purchased:
                 await refreshEntitlements()
             case .pending:
-                message = "Your purchase is awaiting approval. Habits will unlock automatically when it completes."
+                interactionMessage = "Your purchase is awaiting approval. Habits will unlock automatically when it completes."
             case .cancelled:
                 break
             }
         } catch is CancellationError {
             // Cancellation ends this interaction without reporting a store failure.
         } catch {
-            message = error.localizedDescription
+            interactionMessage = error.localizedDescription
         }
     }
 
     func restorePurchases() async {
         guard !isPurchasing else { return }
-        message = nil
+        dismissMessage()
         isPurchasing = true
         defer { isPurchasing = false }
         do {
             try await client.restore()
             await refreshEntitlements()
-            message = hasUnlockedHabits
+            interactionMessage = hasUnlockedHabits
                 ? "Trend Habits has been restored."
                 : "No previous Trend Habits purchase was found."
         } catch is CancellationError {
             // Cancellation ends this interaction without reporting a store failure.
         } catch {
-            message = error.localizedDescription
+            interactionMessage = error.localizedDescription
         }
     }
 
-    func dismissMessage() { message = nil }
+    func dismissMessage() {
+        interactionMessage = nil
+        storeMessage = nil
+    }
 
     private func refreshEntitlements() async {
         let requestID = UUID()

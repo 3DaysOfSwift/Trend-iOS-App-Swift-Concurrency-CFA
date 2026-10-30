@@ -5,6 +5,40 @@ import Testing
 
 @MainActor
 struct PurchaseFeatureTests {
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func successfulStoreRetryClearsOnlyStoreFailure(pendingPurchase: Bool) async {
+        let client = InMemoryPurchaseClient()
+        client.productError = TestPurchaseError.productUnavailable
+        let feature = PurchaseFeature(client: client)
+        await feature.refreshStoreState()
+        #expect(feature.message != nil)
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        client.productResponse = {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+            return client.product
+        }
+        let retry = Task { await feature.refreshStoreState() }
+        var events = entered.stream.makeAsyncIterator()
+        _ = await events.next()
+        #expect(feature.isLoading)
+        if pendingPurchase {
+            client.nextOutcome = .pending
+            await feature.purchaseHabits()
+        }
+        release.continuation.finish()
+        await retry.value
+        #expect(feature.habitsProduct != nil)
+        #expect(!feature.isLoading)
+        if pendingPurchase {
+            #expect(feature.message == "Your purchase is awaiting approval. Habits will unlock automatically when it completes.")
+        } else {
+            #expect(feature.message == nil)
+        }
+    }
+
     @Test(.timeLimit(.minutes(1)), arguments: [false, true], [false, true])
     func failedOrCancelledCommerceAllowsRetry(restore: Bool, cancel: Bool) async {
         let entered = AsyncStream<Void>.makeStream()
